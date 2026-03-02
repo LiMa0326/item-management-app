@@ -1,0 +1,32 @@
+﻿# Android Studio / IntelliJ
+*.iml
+.idea/
+
+# Gradle
+.gradle/
+**/build/
+
+# Android local config
+local.properties
+**/local.properties
+
+# NDK / CMake
+.externalNativeBuild/
+.cxx/
+
+# Android Studio captures
+captures/
+
+# Kotlin metadata
+.kotlin/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Specifically for this repo layout
+apps/ItemManagementAndroid/.gradle/
+apps/ItemManagementAndroid/.idea/
+apps/ItemManagementAndroid/.kotlin/
+apps/ItemManagementAndroid/build/
+apps/ItemManagementAndroid/app/build/
