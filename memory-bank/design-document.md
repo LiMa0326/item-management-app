@@ -98,7 +98,7 @@
 
 ### 5.1 V0 功能清单（本地 Demo）
 **A. 类别（Category）**
-- 默认内置：电子设备 / 鞋子 / 其他（可改名、可删除受限）
+- 默认内置：电子产品（可改名、可归档、不可删除）
 - 支持用户自定义类别：新增、编辑、排序、归档/隐藏
 
 **B. 物品（Item）**
@@ -111,22 +111,27 @@
   - 名称（必填）
   - 购买日期（可选）
   - 购买价格（可选）
+  - 购买币种 purchaseCurrency（可选，默认 USD）
   - 购买地点/网站（可选）
   - 描述（可选，长文本）
 - 扩展字段（为后续迭代预留）：
   - 标签 tags[]（V0 可手动输入，V2 可 AI 生成）
-  - 自定义属性 customAttributes（key-value；按类别不同而不同）
+  - 自定义属性 customAttributes（单字段 JSON；值类型限制为 string|number|boolean）
   - 照片 photos[]（本地 URI/路径）
 
 **D. 浏览与检索**
-- 全局搜索（名称/描述/地点/标签）
+- 全局搜索（名称/描述/地点/标签），规则为大小写不敏感 + 子串匹配（LIKE %kw%）
+- tags 检索按整词匹配
 - 按类别筛选
-- 排序：最近添加/最近更新/购买日期/价格（可选）
+- 排序：最近添加/最近更新/购买日期/价格（可选，日期/价格空值放后）
 
 **E. 备份（本地，跨平台友好）**
 - 导出：生成一个备份包（建议包含数据 JSON + 照片引用/拷贝策略）
 - 导入：从备份包恢复（覆盖或合并策略先做简单版：覆盖）
 - 备份包格式与字段命名应保持平台无关，便于未来 iOS/Web 直接复用
+- 默认策略：V0 本地导出默认 `full`；V1 云备份默认 `thumbnails`
+- `replace_all` 导入策略：导入前自动创建本地快照回滚点，并清理本地照片文件（含孤儿文件）
+- `checksums.json`：V0 可不生成；V1/V2 云备份默认生成并校验（SHA-256）
 
 **V0 验收标准**
 - 在无网络情况下可完整使用
@@ -148,6 +153,7 @@
 - 一键云恢复：从云端选择最新备份包下载并恢复
 - 备份版本列表：显示时间、大小、包含照片数量
 - 失败重试、断点续传（可选，优先简化）
+- 包完整性校验：默认启用 `checksums.json`（manifest/data/photos）
 
 **C. 成本控制策略（V1 必须遵守）**
 - 默认不自动备份（由用户手动触发）
@@ -258,10 +264,11 @@
 - name (string, required)
 - purchaseDate (date?, optional)
 - purchasePrice (number?, optional)
+- purchaseCurrency (string?, optional)
 - purchasePlace (string?, optional)
 - description (string?, optional)
 - tags (string[], optional)
-- customAttributes (object/map<string, string|number|bool>, optional)
+- customAttributes (JSON object, values: string|number|bool)
 - createdAt, updatedAt
 - deletedAt (timestamp?, for soft delete)
 
@@ -269,9 +276,12 @@
 - id
 - itemId
 - localUri (string)  // V0/V1 必需
+- thumbnailUri (string?) // V0 起建议持久化
+- contentType (string, required) // e.g. image/jpeg
 - remoteUri (string?) // V1/V2 可选
 - width, height (optional)
 - createdAt
+- 备份映射规则：`full -> <photoId>.<ext>`，`thumbnails -> <photoId>_thumb.<ext>`
 
 ### 7.2 未来扩展实体（先不实现，留接口）
 - ItemUsageScenario（场景列表、来源：用户/AI）
@@ -288,10 +298,10 @@
 - 缓存：缩略图、搜索索引（可选）
 
 ### 8.2 备份包格式（建议）
-- backup_manifest.json（版本号、生成时间、设备信息、统计信息）
-- items.json（类别与物品数据）
+- manifest.json（版本号、生成时间、设备信息、统计信息、exportMode）
+- data.json（类别与物品数据）
 - photos/（可选：照片文件或缩略图）
-- 校验信息（可选：hash）
+- checksums.json（V1/V2 推荐，SHA-256）
 
 **必须包含：备份版本号**，便于未来做迁移与兼容。
 
@@ -352,9 +362,10 @@
 
 ## 12. 性能与体验要求（不写死实现）
 
-- 搜索响应：本地 1k 物品仍能快速返回（可通过索引/缓存优化）
+- 搜索响应：本地 1k 物品仍能快速返回（V0 暂不设硬阈值，记录基线；后续可升级为量化 SLA）
 - 图片显示：优先缩略图，避免列表卡顿
 - 数据迁移：升级版本不丢数据（有 schema/backup 版本号）
+- 缩略图默认规格：长边 1280px，JPEG，质量 85，移除 EXIF
 
 ---
 
@@ -395,13 +406,16 @@
 
 ---
 
-## 15. 开放问题（允许 Copilot/Codex 在实现时决定）
-1. 本地备份包是否包含原图还是仅缩略图？默认策略如何选？
-2. 搜索是否需要全文检索能力？还是先用字段匹配够用？
-3. 自定义属性的 UI：自由输入 key-value vs 类别模板化（先自由，后模板）？
-4. V2 同步冲突是否需要 UI 介入？还是先 LWW 即可？
-5. AI 功能的默认关闭策略与提示文案如何设计，才能不打扰用户？
-6. Web 端首发应是只读还是直接支持编辑？（建议先只读 + 搜索）
+## 15. 已冻结决策（2026-03-03）
+1. 本地导出默认 `full`，云备份默认 `thumbnails`。
+2. `purchaseCurrency` 为 Item 标准字段（可选但必须建模）。
+3. `customAttributes` 使用单字段 JSON，值类型限制为 `string|number|boolean`。
+4. 默认分类不可删除，仅可重命名与归档；归档可在设置页恢复。
+5. V0 搜索语义固定为大小写不敏感子串匹配；tags 按整词匹配。
+6. V0 不强制单独回收站页；通过“显示已删除”筛选和详情页恢复入口完成恢复闭环。
+7. `replace_all` 导入前必须自动快照；导入时清理本地照片与孤儿文件。
+8. V0 可不生成 `checksums.json`；V1/V2 云备份默认生成并校验。
+9. 1k 搜索在 V0 不设置硬阈值，先记录基线并纳入后续性能提升计划。
 
 ---
 
