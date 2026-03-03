@@ -1,7 +1,7 @@
 ﻿# 技术栈推荐
 ## 1. 总览（一页版）
 - Android（V0）默认：原生 Android（Kotlin）+ 单向数据流 UI + 本地离线优先。
-- 数据层默认：Repository + UseCase 分层；核心实体固定为 Category / Item / ItemPhoto，字段与版本策略对齐文档。
+- 数据层默认：Repository + UseCase 分层；核心实体固定为 Category / Item / ItemPhoto，字段与版本策略对齐文档（含 `purchaseCurrency`、`customAttributes` JSON、`contentType`）。
 - 本地存储默认：SQLite（含索引与迁移）+ 应用私有文件目录存图（原图与缩略图分离）。
 - 备份打包默认：ZIP（`manifest.json` + `data.json` + 可选 `photos/`，可选 `checksums.json`），V1 云端直接复用同一包。
 - 可选云组件：V1 用 Entra External ID + Blob Storage + Azure Functions（手动备份/恢复）；V2 再加增量同步与可选 AI（均可关闭）。
@@ -18,27 +18,29 @@
 - UI 备选 2：跨平台 UI 框架先行（仅当你确定 3-6 个月内马上做 iOS 同款 UI）。
 
 - 架构/分层思路（默认）：`UI -> UseCase -> Repository -> Local DB/File`，禁止 UI 直接访问存储；备份与图片处理走独立 Service。
-- 本地数据库/存储方案（默认）：SQLite（items/category/item_photos 表 + 常用查询索引）；图片存应用私有目录，仅在数据库保存逻辑引用。
+- 本地数据库/存储方案（默认）：SQLite（items/category/item_photos 表 + 常用查询索引）；图片存应用私有目录，仅在数据库保存逻辑引用（`item_photos` 建议持久化 `localUri`、`thumbnailUri`、`contentType`）。
 - 本地数据库备选：对象数据库（仅当你明确接受后续跨端迁移成本）。
 
 - 图片存储与缩略图策略（默认）：
   - 原图入库前做尺寸上限压缩并去 EXIF。
-  - 同步生成缩略图（长边约 1280，可配置）。
+  - 同步生成缩略图（长边 1280px，JPEG，质量 85，可配置）。
   - 列表只读缩略图，详情再读高清图。
   - 删除采用“软删记录 + 延迟清理文件”。
 
-- 搜索实现方案（默认）：先做 SQLite 字段匹配（name/description/purchasePlace/tags），配合前缀索引与排序；当本地数据量 > 3k 且搜索延迟明显，再升级全文检索（FTS）。
+- 搜索实现方案（默认）：先做 SQLite 字段匹配（name/description/purchasePlace/tags），大小写不敏感子串匹配；tags 按整词匹配；当本地数据量 > 3k 且搜索延迟明显，再升级全文检索（FTS）。
 
 - 备份导出/导入实现思路（严格对齐 `memory-bank/BACKUP_FORMAT.md`）：
   - 导出产物固定为 `backup.zip`，包含必需 `manifest.json`、`data.json`，可选 `photos/`、`checksums.json`。
   - `manifest.json` 必含：`formatVersion`、`createdAt`、`exportMode`、`app`、`stats`。
   - `data.json` 必含：`schemaVersion`、`exportedAt`、`categories`、`items`、`itemPhotos`。
   - `exportMode` 默认：本地导出 `full`（用户显式选择时可改），云备份默认 `thumbnails`。
-  - V0 导入模式默认 `replace_all`；导入时忽略未知字段并做版本告警（不阻塞可识别字段导入）。
+  - V0 导入模式默认 `replace_all`；导入前自动快照，并清理本地照片与孤儿文件；导入时忽略未知字段并做版本告警（不阻塞可识别字段导入）。
+  - 校验策略：V0 可不生成 `checksums.json`；V1/V2 云备份默认生成并在导入前校验（SHA-256）。
 
 - 测试策略（最小但有效）：
   - 单测：Repository CRUD、搜索、软删除恢复、备份 JSON 序列化/反序列化一致性。
   - 集成：空库导入 ZIP、导出后再导入回归、包含/不包含 `photos/` 两种包都能成功。
+  - 性能：V0 对 1k 搜索先记录基线，不设置硬阈值；后续版本再引入量化 SLA。
 
 ## 3. V1：最小云备份 + 登录（强成本控制）
 - 身份认证/登录方案（默认）：Microsoft Entra External ID（面向外部用户）。

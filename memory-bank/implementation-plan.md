@@ -13,7 +13,9 @@
 - V0 导入策略必须是 `replace_all`，即清空本地后全量导入。
 - V0 搜索必须先做最小实现：字段匹配（name、description、purchasePlace、tags）+ 类别过滤。
 - V0 照片策略必须可离线：本地存原图，生成并使用缩略图展示列表，备份按 exportMode 决定是否带图。
-- V0 验收标准：无网络可完整使用；50+ 条物品可流畅浏览与搜索；导出文件可在新安装应用导入恢复；1k 条物品搜索响应保持可接受。
+- V0 本地导出默认 exportMode 为 `full`；V1 云备份默认 `thumbnails`。
+- V0 不强制生成 `checksums.json`，但需为 V1/V2 校验能力预留实现接口。
+- V0 验收标准：无网络可完整使用；50+ 条物品可流畅浏览与搜索；导出文件可在新安装应用导入恢复；1k 条物品搜索响应保持可接受（V0 暂不设硬性数值阈值）。
 
 ## 2. V0 分步实施清单（Step-by-step）
 ### Step 01：建立 V0 工程骨架与模块边界
@@ -21,7 +23,7 @@
 建立可编译的 Android 工程骨架，明确 `UI -> UseCase -> Repository -> Local DB/File` 分层，不实现业务细节。
 
 **具体指令**
-在 `apps/ItemManagementAndroid/` 内确认并补齐基础结构：`app/`、`app/src/main/`、`app/src/test/`、`app/src/androidTest/`。在 `app/src/main/` 下创建包结构：`ui`、`domain`、`data`、`backup`、`photo`。创建空页面壳：首页、类别页、物品列表页、物品编辑页、物品详情页、设置页。创建任务追踪文档：`memory-bank/progress-log.md`。
+在 `apps/ItemManagementAndroid/` 内确认并补齐基础结构：`app/`、`app/src/main/`、`app/src/test/`、`app/src/androidTest/`。在 `app/src/main/` 下创建包结构：`ui`、`domain`、`data`、`backup`、`photo`。创建空页面壳：首页、类别页、物品列表页、物品编辑页、物品详情页、设置页。创建任务追踪文档：`memory-bank/progress.md`。
 
 **验证测试**
 手工测试步骤：编译并启动应用，依次进入 6 个页面壳。预期结果：应用不崩溃，页面可切换，空状态文案可见。自动化测试点：新增 1 个启动冒烟测试，验证应用可启动到首页。
@@ -47,7 +49,7 @@
 实现类别的最小可用数据能力，包含默认分类与用户自定义分类。
 
 **具体指令**
-创建 Category DAO、Repository、UseCase。实现 list/create/update/archive/reorder。应用首启写入默认类别：电子设备、鞋子、其他。限制默认类别删除策略，允许重命名与归档。
+创建 Category DAO、Repository、UseCase。实现 list/create/update/archive/reorder。应用首启写入默认类别：电子产品。限制默认类别删除策略，允许重命名与归档。
 
 **验证测试**
 手工测试步骤：首次进入类别页，检查默认类别；新增一个自定义类别；修改排序；归档后隐藏。预期结果：操作后列表与数量正确。自动化测试点：新增 Category CRUD + reorder 单元测试。
@@ -60,7 +62,7 @@
 实现物品数据层最小闭环，支持新增、读取、更新、软删除、恢复。
 
 **具体指令**
-创建 Item DAO、Repository、UseCase。实现字段：name、categoryId、purchaseDate、purchasePrice、purchasePlace、description、tags、customAttributes、createdAt、updatedAt、deletedAt。删除操作仅写 `deletedAt`，恢复操作清空 `deletedAt`。
+创建 Item DAO、Repository、UseCase。实现字段：name、categoryId、purchaseDate、purchasePrice、purchaseCurrency、purchasePlace、description、tags、customAttributes、createdAt、updatedAt、deletedAt。删除操作仅写 `deletedAt`，恢复操作清空 `deletedAt`。`customAttributes` 采用单字段 JSON 存储，值类型限制为 `string|number|boolean`。
 
 **验证测试**
 手工测试步骤：新增 3 条物品；编辑 1 条；删除 1 条后在默认列表隐藏；执行恢复后可见。预期结果：更新时间更新正确，软删除记录可恢复。自动化测试点：新增 Item CRUD + soft delete/restore 测试。
@@ -73,7 +75,7 @@
 建立照片元数据与本地文件引用关系，支持单物品多照片。
 
 **具体指令**
-创建 ItemPhoto DAO、Repository、UseCase。字段至少包含 id、itemId、localUri、width、height、createdAt。建立“删除物品不立即删文件”的延迟清理策略标记。
+创建 ItemPhoto DAO、Repository、UseCase。字段至少包含 id、itemId、localUri、thumbnailUri、contentType、width、height、createdAt。采用固定文件名映射规则：`full` 导出使用 `<photoId>.<ext>`，`thumbnails` 导出使用 `<photoId>_thumb.<ext>`。建立“删除物品不立即删文件”的延迟清理策略标记。
 
 **验证测试**
 手工测试步骤：为同一物品添加 2 张照片并保存；重新进入详情页检查是否可见；删除后恢复再检查。预期结果：照片关联不丢失。自动化测试点：新增 ItemPhoto 增删查测试。
@@ -99,7 +101,7 @@
 完成类别页可视化管理能力。
 
 **具体指令**
-在类别页实现列表展示、创建、编辑、归档/取消归档、排序调整。显示每个类别的物品数量。为默认类别显示“受限删除”提示。
+在类别页实现列表展示、创建、编辑、归档/取消归档、排序调整。显示每个类别的物品数量。默认类别（电子产品）必须完全不可删除，仅允许重命名和归档。
 
 **验证测试**
 手工测试步骤：新增两个类别，调整顺序，归档一个，再取消归档。预期结果：排序、数量、归档状态实时更新。自动化测试点：新增类别页交互测试。
@@ -112,7 +114,7 @@
 完成物品列表浏览能力，支持类别过滤与基础排序。
 
 **具体指令**
-在物品列表页实现按类别过滤。实现排序项：最近添加、最近更新、购买日期、价格。默认隐藏软删除项。提供空状态和无结果状态。
+在物品列表页实现按类别过滤。实现排序项：最近添加、最近更新、购买日期、价格。购买日期和价格排序时空值统一放后。默认隐藏软删除项。提供空状态和无结果状态。
 
 **验证测试**
 手工测试步骤：准备不同日期与价格的 10 条数据，切换排序和过滤。预期结果：展示顺序与筛选结果正确。自动化测试点：新增列表排序与过滤测试。
@@ -125,7 +127,7 @@
 完成物品表单能力，覆盖 V0 必填与可选字段。
 
 **具体指令**
-实现表单字段：名称必填；购买日期、价格、地点、描述可选；tags 支持输入；customAttributes 支持 key-value 最小录入。实现保存、取消、校验提示。
+实现表单字段：名称必填；购买日期、价格、币种、地点、描述可选；tags 支持输入；customAttributes 支持 key-value 最小录入。实现保存、取消、校验提示。
 
 **验证测试**
 手工测试步骤：提交空名称、合法名称、带扩展字段三种表单。预期结果：空名称被拦截；合法表单可保存并回显。自动化测试点：新增表单校验测试。
@@ -138,10 +140,10 @@
 完成详情查看和删除恢复闭环。
 
 **具体指令**
-详情页展示全部字段与照片墙。提供编辑入口、删除入口、恢复入口。显示 createdAt 与 updatedAt。删除后从常规列表隐藏。
+详情页展示全部字段与照片墙。提供编辑入口、删除入口、恢复入口。显示 createdAt 与 updatedAt。删除后从常规列表隐藏。V0 不强制单独“回收站页”，可通过列表“显示已删除”筛选或详情页恢复入口完成闭环。
 
 **验证测试**
-手工测试步骤：进入详情页检查字段完整性；删除后到回收视图恢复。预期结果：字段展示正确，删除恢复不丢数据。自动化测试点：新增详情页状态变化测试。
+手工测试步骤：进入详情页检查字段完整性；删除后通过“显示已删除”筛选或详情页入口恢复。预期结果：字段展示正确，删除恢复不丢数据。自动化测试点：新增详情页状态变化测试。
 
 **完成定义（DoD）**
 详情功能完整；软删除恢复可操作；状态一致。
@@ -151,7 +153,7 @@
 实现 V0 最小搜索能力并定义升级触发条件。
 
 **具体指令**
-实现全局搜索入口，匹配字段：name、description、purchasePlace、tags。支持与类别过滤联合使用。记录性能基线。写入升级触发规则：当本地数据超过 3k 且搜索响应不可接受时，进入全文检索升级任务。
+实现全局搜索入口，匹配字段：name、description、purchasePlace、tags。搜索语义固定为“大小写不敏感 + 子串匹配（LIKE %kw%）”，其中 tags 按整词匹配。支持与类别过滤联合使用。记录性能基线。写入升级触发规则：当本地数据超过 3k 且搜索响应不可接受时，进入全文检索升级任务。
 
 **验证测试**
 手工测试步骤：构造 50 条含关键词数据，验证命中与未命中场景。预期结果：关键词命中正确，筛选组合结果正确。自动化测试点：新增搜索命中与排序一致性测试。
@@ -164,7 +166,7 @@
 完成照片本地策略，保证列表流畅与隐私最小化。
 
 **具体指令**
-实现拍照/选图导入到应用私有目录。生成缩略图用于列表展示。保留原图用于详情。处理时移除 EXIF。为失败情况提供重试提示。
+实现拍照/选图导入到应用私有目录。生成缩略图用于列表展示。保留原图用于详情。处理时移除 EXIF。缩略图默认规格：长边 1280px、JPEG、质量 85。为失败情况提供重试提示。
 
 **验证测试**
 手工测试步骤：导入 20 张照片，滚动列表与打开详情。预期结果：列表无明显卡顿，详情可加载高清图，原图与缩略图都可访问。自动化测试点：新增图片处理任务成功率测试。
@@ -177,7 +179,7 @@
 生成平台无关 ZIP 备份，支持 exportMode。
 
 **具体指令**
-创建 `backup/export` 模块与 `BackupService.exportLocalBackup()`。导出文件结构必须为 `manifest.json`、`data.json`、可选 `photos/`、可选 `checksums.json`。`manifest.json` 必含 `formatVersion`、`createdAt`、`exportMode`、`app`、`stats`。`data.json` 必含 `schemaVersion`、`exportedAt`、`categories`、`items`、`itemPhotos`。V0 默认 exportMode 设为 `thumbnails`，并提供 `metadata_only`、`full` 可选项。
+创建 `backup/export` 模块与 `BackupService.exportLocalBackup()`。导出文件结构必须为 `manifest.json`、`data.json`、可选 `photos/`、可选 `checksums.json`。`manifest.json` 必含 `formatVersion`、`createdAt`、`exportMode`、`app`、`stats`。`data.json` 必含 `schemaVersion`、`exportedAt`、`categories`、`items`、`itemPhotos`。V0 本地导出默认 exportMode 设为 `full`，并提供 `metadata_only`、`thumbnails` 可选项。V0 可不生成 `checksums.json`，但需预留后续版本开启校验的扩展点。
 
 **验证测试**
 手工测试步骤：分别导出 `metadata_only`、`thumbnails`、`full` 三种包并解压检查结构。预期结果：三种包字段完整；`metadata_only` 可无 `photos/`；`thumbnails/full` 包含可引用图片文件。自动化测试点：新增导出包结构校验测试。
@@ -190,7 +192,7 @@
 实现 V0 必需导入能力，先保证稳定恢复。
 
 **具体指令**
-创建 `backup/import` 模块与 `BackupService.importLocalBackup()`。实现 `replace_all`：导入前清空本地核心表，再导入 `data.json`。导入时忽略未知字段。对 `formatVersion` 与 `schemaVersion` 更高版本做“尽力导入 + 告警”。
+创建 `backup/import` 模块与 `BackupService.importLocalBackup()`。实现 `replace_all`：导入前自动生成一次本地快照回滚点，随后清空本地核心表与本地照片文件（含孤儿文件），再导入 `data.json`。导入时忽略未知字段。对 `formatVersion` 与 `schemaVersion` 更高版本做“尽力导入 + 告警”。
 
 **验证测试**
 手工测试步骤：先造本地数据，再导入另一个备份包。预期结果：本地数据被完整替换，导入结果与备份内容一致。再测试带未知字段包。预期结果：导入成功且未知字段不导致失败。自动化测试点：新增 replace_all 导入一致性测试。
@@ -206,7 +208,7 @@ replace_all 稳定可复现；兼容规则生效；导入失败可提示。
 执行完整回归清单：离线使用、类别管理、物品 CRUD、搜索过滤、照片展示、导出导入。补齐缺失测试用例。将 V1/V2 仅记录为后续任务，不在本次实现。
 
 **验证测试**
-手工测试步骤：断网运行全流程；导出后清空应用并导入；构造 50+ 条数据测试流畅性；构造 1k 条数据做搜索响应抽样。预期结果：全部通过，且无 P0/P1 缺陷。自动化测试点：运行全部单测与集成测试并记录结果。
+手工测试步骤：断网运行全流程；导出后清空应用并导入；构造 50+ 条数据测试流畅性；构造 1k 条数据做搜索响应抽样与基线记录。预期结果：全部通过，且无 P0/P1 缺陷。自动化测试点：运行全部单测与集成测试并记录结果。
 
 **完成定义（DoD）**
 V0 验收标准全部达成；测试报告完整；范围冻结。
@@ -225,7 +227,7 @@ V0 验收标准全部达成；测试报告完整；范围冻结。
 - 通过标准：备份包格式严格符合 `memory-bank/BACKUP_FORMAT.md`，导入导出可端到端复现。
 
 ### Checkpoint D：V0 验收收口（Step 15 后）
-- 必须通过的测试清单：离线回归清单通过；50+ 数据手工流畅性通过；1k 搜索抽样通过；全部自动化测试通过。
+- 必须通过的测试清单：离线回归清单通过；50+ 数据手工流畅性通过；1k 搜索抽样与基线记录完成（V0 暂不设硬阈值）；全部自动化测试通过。
 - 通过标准：V0 可以交付个人使用场景，且没有阻断缺陷。
 
 ## 4. V1（后续阶段）：最小云备份 + 登录（强成本控制）
@@ -247,7 +249,7 @@ V0 验收标准全部达成；测试报告完整；范围冻结。
 在不改变本地优先模型下，实现“手动上传备份包”。
 
 **具体指令**
-创建 `cloud-backup/upload` 模块。复用 V0 导出 ZIP 作为上传对象。默认 exportMode 为 `thumbnails`。设置页新增“立即云备份”按钮，不实现自动定时。
+创建 `cloud-backup/upload` 模块。复用 V0 导出 ZIP 作为上传对象。默认 exportMode 为 `thumbnails`。V1 开始默认生成 `checksums.json`（至少覆盖 `manifest.json`、`data.json` 与已打包图片文件的 SHA-256）并随包上传。设置页新增“立即云备份”按钮，不实现自动定时。
 
 **验证测试**
 手工测试步骤：登录后点击手动备份，查看备份历史。预期结果：上传成功，历史记录含时间与大小。自动化测试点：新增上传成功/失败重试测试。
@@ -260,7 +262,7 @@ V0 验收标准全部达成；测试报告完整；范围冻结。
 支持从云端选择备份并恢复到本地。
 
 **具体指令**
-创建 `cloud-backup/download` 模块。实现备份列表展示与下载后调用本地 `replace_all` 导入。恢复前提示当前数据将被替换。
+创建 `cloud-backup/download` 模块。实现备份列表展示与下载后调用本地 `replace_all` 导入。恢复前提示当前数据将被替换。若包内存在 `checksums.json`，导入前先完成完整性校验并在失败时中止导入。
 
 **验证测试**
 手工测试步骤：A 设备上传备份，B 设备登录同账号下载恢复。预期结果：文本字段与缩略图恢复成功。自动化测试点：新增下载后导入一致性测试。

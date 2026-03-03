@@ -32,6 +32,10 @@ backup.zip
 - `photos/`: embedded photos (optional, depends on export mode)
 - `checksums.json`: integrity checks (optional)
 
+Version guidance:
+- V0: `checksums.json` is optional and can be omitted.
+- V1/V2 cloud backup: generate and verify `checksums.json` by default (recommended SHA-256).
+
 ---
 
 ## 2. Export Modes (Cost Control)
@@ -48,6 +52,7 @@ backup.zip
 Rules:
 - `exportMode` must be recorded in `manifest.json`.
 - Import must succeed even if `photos/` is missing (i.e., `metadata_only`).
+- Default strategy: local export in V0 defaults to `full`; cloud backup in V1+ defaults to `thumbnails`.
 
 ---
 
@@ -134,6 +139,7 @@ Optional (recommended):
 - `description` (string)
 - `tags` (string[])
 - `customAttributes` (object/map) — **key-value for extensibility**
+- `customAttributes` value type recommendation: `string | number | boolean` (avoid nested objects/arrays in V0)
 - `deletedAt` (ISO-8601) — present if soft-deleted
 
 Example:
@@ -174,6 +180,9 @@ Optional:
 Rules:
 - If `exportMode = metadata_only`, `fileName` is typically omitted.
 - If `exportMode = thumbnails|full`, and photos are embedded, `fileName` must exist.
+- Deterministic file mapping is recommended:
+  - `full`: `<photoId>.<ext>`
+  - `thumbnails`: `<photoId>_thumb.<ext>`
 
 Example:
 ```json
@@ -196,6 +205,7 @@ Example:
 ### 5.1 Naming
 Recommended deterministic naming:
 - `<photoId>.<ext>`
+- `<photoId>_thumb.<ext>` (for thumbnail mode)
 
 Example:
 ```
@@ -204,11 +214,9 @@ photos/photo_aa11bb22.jpg
 
 ### 5.2 Thumbnail Guidance (for `thumbnails` mode)
 To reduce storage/cloud cost:
-- Long side max around ~1280px (implementation can choose)
+- Long side max 1280px
 - Strip EXIF metadata (privacy)
-- Compress for size
-
-(Exact numbers are implementation details; keep configurable.)
+- JPEG format, quality around 85
 
 ---
 
@@ -216,6 +224,8 @@ To reduce storage/cloud cost:
 
 ### 6.1 V0 Required Import Mode
 - `replace_all`: wipe local data then import everything from `data.json`
+- Before wipe: create one local rollback snapshot automatically.
+- During wipe: clear local photo files as well, including orphaned files not referenced by DB.
 
 ### 6.2 Future Import Mode (V2+)
 - `merge_upsert` (optional enhancement):
@@ -240,6 +250,7 @@ To reduce storage/cloud cost:
 
 Cloud backup should upload/download the **same zip package**.
 - V1 default recommendation: `thumbnails` mode
+- V1/V2 recommendation: include `checksums.json` and validate before restore
 - Cloud restore should simply download the zip and run the same import flow.
 
 ---
@@ -264,8 +275,8 @@ Cloud backup should upload/download the **same zip package**.
   "exportedAt": "2026-03-01T10:22:11Z",
   "categories": [
     {
-      "id": "cat_shoes",
-      "name": "Shoes",
+      "id": "cat_electronics",
+      "name": "Electronics",
       "sortOrder": 20,
       "isArchived": false,
       "createdAt": "2026-03-01T10:00:00Z",
@@ -275,15 +286,15 @@ Cloud backup should upload/download the **same zip package**.
   "items": [
     {
       "id": "item_001",
-      "categoryId": "cat_shoes",
-      "name": "Nike Pegasus 40",
-      "purchaseDate": "2025-09-02",
-      "purchasePrice": 89.0,
+      "categoryId": "cat_electronics",
+      "name": "Sony WH-1000XM5",
+      "purchaseDate": "2025-10-12",
+      "purchasePrice": 329.99,
       "purchaseCurrency": "USD",
-      "purchasePlace": "Nike Store",
-      "description": "Daily trainer",
-      "tags": ["running"],
-      "customAttributes": { "sizeUS": 10, "color": "White" },
+      "purchasePlace": "Amazon",
+      "description": "Noise cancelling headphone",
+      "tags": ["audio"],
+      "customAttributes": { "color": "Black" },
       "createdAt": "2026-03-01T10:01:00Z",
       "updatedAt": "2026-03-01T10:01:00Z"
     }
