@@ -26,6 +26,7 @@ Thumbs.db
 
 # Specifically for this repo layout
 apps/ItemManagementAndroid/.gradle/
+apps/ItemManagementAndroid/.gradle-user-home/
 apps/ItemManagementAndroid/.idea/
 apps/ItemManagementAndroid/.kotlin/
 apps/ItemManagementAndroid/build/

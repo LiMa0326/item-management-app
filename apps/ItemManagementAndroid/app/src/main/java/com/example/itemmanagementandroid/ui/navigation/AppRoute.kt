@@ -1,0 +1,29 @@
+package com.example.itemmanagementandroid.ui.navigation
+
+sealed interface AppRoute {
+    val title: String
+
+    data object Home : AppRoute {
+        override val title: String = "Home"
+    }
+
+    data object Category : AppRoute {
+        override val title: String = "Category"
+    }
+
+    data object ItemList : AppRoute {
+        override val title: String = "Item List"
+    }
+
+    data object ItemDetail : AppRoute {
+        override val title: String = "Item Detail"
+    }
+
+    data object ItemEdit : AppRoute {
+        override val title: String = "Item Edit"
+    }
+
+    data object Settings : AppRoute {
+        override val title: String = "Settings"
+    }
+}

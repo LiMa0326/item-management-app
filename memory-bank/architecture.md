@@ -121,3 +121,53 @@
   - 建立 architecture 文档基线，补齐数据库结构、索引建议、备份导入策略。
   - 根据用户确认冻结关键决策：`purchaseCurrency`、默认导出模式、checksums 分阶段、搜索与排序语义。
   - 明确本文件作为“AI 生成文件职责登记 + 架构演进记录”的唯一入口。
+- 2026-03-04
+  - 完成 Step 01：建立 V0 工程骨架与模块边界，确保 `UI -> UseCase -> Repository -> Local DB/File` 分层目录可落地。
+  - 用最小内存态导航（`AppRoute` + `AppNavigatorState`）替代模板单页，形成 6 页面壳可达链路。
+  - 启动入口从模板 `Greeting` 迁移到 `ItemManagementApp`，为后续 Step 02+ 数据层接入预留稳定 UI 容器。
+  - 新增启动冒烟测试并在设备端通过，验证 Step 01 的“可启动、可切换、不崩溃”目标。
+
+## 8. Step 01 新增文件职责（2026-03-04）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 8.1 入口与应用壳
+- `main/java/com/example/itemmanagementandroid/MainActivity.kt`
+  - Android 入口 Activity；负责挂载主题与 `ItemManagementApp` 根 composable，不承载业务逻辑。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - Step 01 的 UI 根壳；集中管理当前路由分发与页面壳装配，是后续接入 ViewModel/UseCase 的统一入口。
+
+### 8.2 导航骨架
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppRoute.kt`
+  - 路由类型定义；固定 6 个页面壳（Home/Category/ItemList/ItemDetail/ItemEdit/Settings）。
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigatorState.kt`
+  - 最小内存态导航状态容器；提供 `navigate`/`goBack`/`canGoBack`，通过栈实现页面切换。
+
+### 8.3 页面壳（UI Screen Skeleton）
+- `main/java/com/example/itemmanagementandroid/ui/screens/home/HomeScreen.kt`
+  - 首页壳；展示空状态与到各页面壳的导航入口，作为手工验证起点。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreen.kt`
+  - 类别页壳；保留类别管理入口位与返回链路，不含数据实现。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 物品列表页壳；保留列表能力入口位与详情/编辑跳转占位。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 物品详情页壳；保留详情展示位与编辑跳转占位。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreen.kt`
+  - 物品编辑页壳；保留保存流入口位（本步仅空状态 + 导航）。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 设置页壳；保留备份/账户/配置入口位（本步仅空状态 + 导航）。
+
+### 8.4 分层边界占位（Module Marker）
+- `main/java/com/example/itemmanagementandroid/ui/UiModuleMarker.kt`
+  - UI 层边界标记，明确页面/状态逻辑归属。
+- `main/java/com/example/itemmanagementandroid/domain/DomainModuleMarker.kt`
+  - Domain 层边界标记，预留 UseCase 与业务规则实现位置。
+- `main/java/com/example/itemmanagementandroid/data/DataModuleMarker.kt`
+  - Data 层边界标记，预留 DAO/Repository/DB 访问实现位置。
+- `main/java/com/example/itemmanagementandroid/backup/BackupModuleMarker.kt`
+  - Backup 层边界标记，预留导入导出与 ZIP 组包实现位置。
+- `main/java/com/example/itemmanagementandroid/photo/PhotoModuleMarker.kt`
+  - Photo 层边界标记，预留图片存储、缩略图与 EXIF 处理实现位置。
+
+### 8.5 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/StartupSmokeTest.kt`
+  - 启动冒烟测试；断言应用启动到首页壳并显示空状态文案，用于保障 Step 01 回归稳定性。
