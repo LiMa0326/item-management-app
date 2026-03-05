@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-04）
-- 当前阶段：V0 Step 01 已完成，等待 Step 02 放行
+## 当前总览（截至 2026-03-05）
+- 当前阶段：V0 Step 02 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 01（工程骨架与模块边界），并通过编译、手工验证与自动化测试；按要求未开始 Step 02。
+- 说明：已完成 Step 02（本地数据模型与数据库 schema v1），已提交代码与 schema 校验测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 03。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -44,3 +44,30 @@
 - 下一步：
   1. 等待用户明确放行后再进入 Step 02（本地数据模型与数据库 v1）。
   2. Step 02 开始前保持当前 Step 01 代码与文档基线不变。
+
+### 2026-03-05 - Step 02：本地数据模型与数据库 Schema v1
+- 状态：`done`
+- 关键产出：
+  - Gradle 接入 Room + KSP：新增 `room-runtime`、`room-ktx`、`room-compiler`、`room-testing`，并启用 KSP `room.schemaLocation` 参数。
+  - 新增 3 个持久化实体：
+    - `CategoryEntity`（`categories`，含 `is_system_default` 与排序/归档索引）
+    - `ItemEntity`（`items`，含 `purchase_currency`、`tags_json`、`custom_attributes_json`、`deleted_at` 与多列索引）
+    - `ItemPhotoEntity`（`item_photos`，含 `local_uri`、`thumbnail_uri`、`content_type`）
+  - 新增数据库契约：
+    - `ItemManagementDatabase`（Room `@Database`，`version = 1`）
+    - `DatabaseVersions`（`SCHEMA_V1 = 1`，`CURRENT = 1`）
+    - `DatabaseMigrations`（迁移入口占位，当前为空）
+  - 新增 `androidTest`：`DatabaseSchemaV1Test`，覆盖表存在性、字段完整性、NOT NULL 约束与 `PRAGMA user_version` 校验。
+  - 创建 `app/schemas/` 目录占位（`.gitkeep`），用于 Room schema 导出路径。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:compileDebugKotlin`：通过
+    - `:app:testDebugUnitTest`：通过
+    - `:app:compileDebugAndroidTestKotlin`：通过
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.data.local.db.DatabaseSchemaV1Test`：通过（设备 `SM-S901U1 - Android 14`，执行 5 项测试）
+  - 构建备注：
+    - 新增 `gradle.properties` 开关 `android.disallowKotlinSourceSets=false`，用于兼容 AGP 9 内建 Kotlin 与 KSP/Room 的当前校验限制（编译期告警可见，功能不受影响）。
+- 阻塞项：无
+- 下一步：
+  1. 等待用户在 Android Studio 复测并确认 Step 02 验证通过。
+  2. 在用户明确“验证通过”前，不进入 Step 03。
