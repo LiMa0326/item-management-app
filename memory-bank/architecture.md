@@ -126,6 +126,11 @@
   - 用最小内存态导航（`AppRoute` + `AppNavigatorState`）替代模板单页，形成 6 页面壳可达链路。
   - 启动入口从模板 `Greeting` 迁移到 `ItemManagementApp`，为后续 Step 02+ 数据层接入预留稳定 UI 容器。
   - 新增启动冒烟测试并在设备端通过，验证 Step 01 的“可启动、可切换、不崩溃”目标。
+- 2026-03-05
+  - 完成 Step 02：落地 Room Schema v1（`categories`、`items`、`item_photos`），字段与约束对齐本文件第 4 章定义。
+  - 在 `data/local/entity` 固化三类实体映射，统一 snake_case 列名与 ISO-8601 时间字符串存储策略。
+  - 在 `data/local/db` 新增数据库契约、版本常量与迁移入口占位，冻结当前数据库版本为 `1`。
+  - 新增 `DatabaseSchemaV1Test`，对三张核心表、关键 NOT NULL 约束与 `PRAGMA user_version` 做仪器测试校验。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -171,3 +176,38 @@
 ### 8.5 测试文件
 - `androidTest/java/com/example/itemmanagementandroid/StartupSmokeTest.kt`
   - 启动冒烟测试；断言应用启动到首页壳并显示空状态文案，用于保障 Step 01 回归稳定性。
+
+## 9. Step 02 新增文件职责（2026-03-05）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 9.1 构建配置
+- `app/build.gradle.kts`
+  - 接入 Room 与 KSP；配置 Room schema 导出参数（`room.schemaLocation`）；补充 `room-testing` 供 `androidTest` 使用。
+- `../build.gradle.kts`
+  - 注册 KSP 根插件（`apply false`），允许 app 模块启用代码生成。
+- `../../gradle/libs.versions.toml`
+  - 新增 Room/KSP 版本与依赖别名，固定 Step 02 使用的构建契约。
+- `../gradle.properties`
+  - 增加 `android.disallowKotlinSourceSets=false` 兼容开关，解决 AGP 9 内建 Kotlin 与 KSP 的当前校验冲突。
+- `app/schemas/.gitkeep`
+  - 预留 Room schema 导出目录，保证路径稳定可追踪。
+
+### 9.2 数据实体映射
+- `main/java/com/example/itemmanagementandroid/data/local/entity/CategoryEntity.kt`
+  - `categories` 表映射；包含默认分类标记列 `is_system_default` 与排序/归档索引。
+- `main/java/com/example/itemmanagementandroid/data/local/entity/ItemEntity.kt`
+  - `items` 表映射；覆盖 V0 核心字段（含 `purchase_currency`、`tags_json`、`custom_attributes_json`、`deleted_at`）与索引定义。
+- `main/java/com/example/itemmanagementandroid/data/local/entity/ItemPhotoEntity.kt`
+  - `item_photos` 表映射；维护物品与本地照片 URI、缩略图 URI、媒体类型与尺寸元数据。
+
+### 9.3 数据库契约
+- `main/java/com/example/itemmanagementandroid/data/local/db/ItemManagementDatabase.kt`
+  - Room 数据库根定义；注册 3 个实体并固定 `version = 1`，提供数据库构建入口。
+- `main/java/com/example/itemmanagementandroid/data/local/db/DatabaseVersions.kt`
+  - 数据库版本常量定义（`SCHEMA_V1`、`CURRENT`）。
+- `main/java/com/example/itemmanagementandroid/data/local/db/DatabaseMigrations.kt`
+  - 迁移列表入口占位；为后续 schema 升级预留挂载点。
+
+### 9.4 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/data/local/db/DatabaseSchemaV1Test.kt`
+  - Schema v1 仪器测试：校验表存在性、字段集、NOT NULL 约束与数据库版本号。
