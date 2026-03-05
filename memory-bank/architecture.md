@@ -131,6 +131,9 @@
   - 在 `data/local/entity` 固化三类实体映射，统一 snake_case 列名与 ISO-8601 时间字符串存储策略。
   - 在 `data/local/db` 新增数据库契约、版本常量与迁移入口占位，冻结当前数据库版本为 `1`。
   - 新增 `DatabaseSchemaV1Test`，对三张核心表、关键 NOT NULL 约束与 `PRAGMA user_version` 做仪器测试校验。
+  - 完成 Step 03：建立 Category 数据层闭环（DAO/Repository/UseCase），覆盖 `list/create/update/archive/reorder` 与默认分类初始化能力。
+  - 在应用启动链路接入 `EnsureDefaultCategoryUseCase`，首启自动写入默认分类“电子产品”（`is_system_default=1`）。
+  - 新增 `CategoryRepositoryImplTest`（JVM），校验默认分类幂等初始化、Category CRUD、归档过滤与 reorder 排序更新逻辑。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -211,3 +214,44 @@
 ### 9.4 测试文件
 - `androidTest/java/com/example/itemmanagementandroid/data/local/db/DatabaseSchemaV1Test.kt`
   - Schema v1 仪器测试：校验表存在性、字段集、NOT NULL 约束与数据库版本号。
+
+## 10. Step 03 新增文件职责（2026-03-05）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 10.1 DAO 与数据库接入
+- `main/java/com/example/itemmanagementandroid/data/local/dao/CategoryDao.kt`
+  - Category 的 Room DAO；提供有序查询、按 ID 查询、默认分类计数、插入/更新与排序更新能力。
+- `main/java/com/example/itemmanagementandroid/data/local/db/ItemManagementDatabase.kt`
+  - 新增 `categoryDao()` 访问入口，允许 Repository 通过数据库契约接入 Category 表操作。
+- `main/java/com/example/itemmanagementandroid/data/local/db/DatabaseProvider.kt`
+  - 提供进程级数据库单例，避免 Activity 重建时重复创建 Room 实例。
+
+### 10.2 Domain 与 Repository
+- `main/java/com/example/itemmanagementandroid/domain/model/Category.kt`
+  - Category 领域模型，作为 UseCase/UI 的稳定输入输出类型。
+- `main/java/com/example/itemmanagementandroid/domain/model/DefaultCategories.kt`
+  - 默认分类常量（`cat_electronics` / `电子产品`），集中管理默认值约束。
+- `main/java/com/example/itemmanagementandroid/domain/repository/CategoryRepository.kt`
+  - Category 仓储接口，定义 `list/create/update/setArchived/reorder/ensureDefaultCategory`。
+- `main/java/com/example/itemmanagementandroid/data/repository/CategoryRepositoryImpl.kt`
+  - Category 仓储实现；封装字段校验、时间戳写入、排序重排与默认分类幂等初始化逻辑。
+
+### 10.3 UseCase 与应用启动初始化
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/ListCategoriesUseCase.kt`
+  - 类别列表查询入口（支持是否包含归档）。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/CreateCategoryUseCase.kt`
+  - 新增类别入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/UpdateCategoryUseCase.kt`
+  - 重命名类别入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/SetCategoryArchivedUseCase.kt`
+  - 归档/反归档入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/ReorderCategoriesUseCase.kt`
+  - 类别排序重排入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/category/EnsureDefaultCategoryUseCase.kt`
+  - 默认分类初始化入口，用于首启写入系统默认类别。
+- `main/java/com/example/itemmanagementandroid/MainActivity.kt`
+  - 在 `onCreate` 中通过 `Dispatchers.IO` 调用默认分类初始化 UseCase，确保启动阶段完成默认分类落地。
+
+### 10.4 测试文件
+- `test/java/com/example/itemmanagementandroid/data/repository/CategoryRepositoryImplTest.kt`
+  - Category 数据层单测；覆盖默认分类幂等初始化、Category CRUD + archive 行为、reorder 排序更新结果。
