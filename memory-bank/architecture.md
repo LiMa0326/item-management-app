@@ -134,6 +134,10 @@
   - 完成 Step 03：建立 Category 数据层闭环（DAO/Repository/UseCase），覆盖 `list/create/update/archive/reorder` 与默认分类初始化能力。
   - 在应用启动链路接入 `EnsureDefaultCategoryUseCase`，首启自动写入默认分类“电子产品”（`is_system_default=1`）。
   - 新增 `CategoryRepositoryImplTest`（JVM），校验默认分类幂等初始化、Category CRUD、归档过滤与 reorder 排序更新逻辑。
+  - 完成 Step 04：建立 Item 数据层闭环（DAO/Repository/UseCase），覆盖 `list/get/create/update/softDelete/restore`。
+  - 在 `ItemRepositoryImpl` 固化 `tags_json` 与 `custom_attributes_json` 的编码/解码策略，并通过 `org.json` 限制 `customAttributes` 值类型为 `string|number|boolean`。
+  - 固化软删除幂等语义：删除仅写入 `deleted_at`，恢复仅清空 `deleted_at`，两者均更新 `updated_at`。
+  - 新增 `ItemRepositoryImplTest`（JVM），覆盖 Item CRUD、软删除/恢复可见性、幂等行为与 JSON 字段往返校验。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -255,3 +259,44 @@
 ### 10.4 测试文件
 - `test/java/com/example/itemmanagementandroid/data/repository/CategoryRepositoryImplTest.kt`
   - Category 数据层单测；覆盖默认分类幂等初始化、Category CRUD + archive 行为、reorder 排序更新结果。
+
+## 11. Step 04 新增文件职责（2026-03-05）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 11.1 DAO 与数据库接入
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemDao.kt`
+  - Item 的 Room DAO；提供全量/未删除有序查询、按 ID 查询、插入与更新能力（按 `updated_at DESC, created_at DESC` 排序）。
+- `main/java/com/example/itemmanagementandroid/data/local/db/ItemManagementDatabase.kt`
+  - 新增 `itemDao()` 访问入口，使 Item Repository 可通过数据库契约访问 `items` 表。
+
+### 11.2 Domain 与 Repository
+- `main/java/com/example/itemmanagementandroid/domain/model/Item.kt`
+  - Item 领域模型，统一 Item 数据层对外输出结构（含软删除字段 `deletedAt`）。
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemDraft.kt`
+  - Item 创建/更新输入模型，承载可写字段集合。
+- `main/java/com/example/itemmanagementandroid/domain/repository/ItemRepository.kt`
+  - Item 仓储接口，定义 `list/get/create/update/softDelete/restore`。
+- `main/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImpl.kt`
+  - Item 仓储实现；封装名称/分类与 JSON 字段校验、UTC 时间戳写入、软删除与恢复幂等逻辑。
+- `main/java/com/example/itemmanagementandroid/data/repository/json/ItemJsonCodec.kt`
+  - Item JSON 编解码契约，隔离 `tags/customAttributes` 与存储字符串之间的转换细节。
+- `main/java/com/example/itemmanagementandroid/data/repository/json/OrgJsonItemJsonCodec.kt`
+  - 基于 `org.json` 的默认 JSON 编解码实现，用于生产路径下的 `tags/customAttributes` 序列化与反序列化。
+
+### 11.3 UseCase
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/ListItemsUseCase.kt`
+  - Item 列表查询入口（支持是否包含软删除）。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/GetItemUseCase.kt`
+  - 按 ID 获取单个 Item 入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/CreateItemUseCase.kt`
+  - 新增 Item 入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/UpdateItemUseCase.kt`
+  - 更新 Item 入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/SoftDeleteItemUseCase.kt`
+  - 软删除 Item 入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/RestoreItemUseCase.kt`
+  - 恢复 Item 入口。
+
+### 11.4 测试文件
+- `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
+  - Item 数据层单测；覆盖 create/get/update、软删除/恢复、幂等行为与 `tags/customAttributes` JSON 往返及非法值校验。
