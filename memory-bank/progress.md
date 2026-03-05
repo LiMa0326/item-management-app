@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-05）
-- 当前阶段：V0 Step 03 已完成，等待用户验证放行
+- 当前阶段：V0 Step 04 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 03（Category 数据层与默认分类初始化），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 04。
+- 说明：已完成 Step 04（Item 数据层含软删除/恢复），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 05。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -90,3 +90,27 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 03（默认分类初始化、类别新增/修改/归档/排序）。
   2. 用户明确“机测通过”前，不进入 Step 04。
+
+### 2026-03-05 - Step 04：Item 数据层（含软删除与恢复）
+- 状态：`done`
+- 关键产出：
+  - 新增 `ItemDao`，落地 Item 全量/未删除查询、按 ID 查询、插入与更新 SQL，查询排序固定为 `updated_at DESC, created_at DESC`。
+  - 在 `ItemManagementDatabase` 新增 `itemDao()` 接口，完成 Item 数据层数据库接入。
+  - 新增 Item 领域模型与输入模型：`Item`、`ItemDraft`。
+  - 新增 Item 仓储接口与实现：`ItemRepository`、`ItemRepositoryImpl`，覆盖 `list/get/create/update/softDelete/restore` 六类能力。
+  - 在 `ItemRepositoryImpl` 固化 JSON 字段策略：`tags` <-> `tags_json`，`customAttributes` <-> `custom_attributes_json`，并校验自定义属性值类型仅允许 `string|number|boolean`。
+  - 新增 Item UseCase 组：`ListItemsUseCase`、`GetItemUseCase`、`CreateItemUseCase`、`UpdateItemUseCase`、`SoftDeleteItemUseCase`、`RestoreItemUseCase`。
+  - 新增 `ItemRepositoryImplTest`，覆盖 create/get/update、软删除/恢复可见性、删除/恢复幂等行为、非法 customAttributes 拦截与 JSON 往返校验。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:testDebugUnitTest`
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.data.repository.ItemRepositoryImplTest"`
+    - `:app:compileDebugKotlin`
+  - 构建备注：
+    - 当前 CLI 通过设置 `GRADLE_OPTS=-Dkotlin.compiler.execution.strategy=in-process` 稳定执行 Gradle；Kotlin daemon 在本机权限受限时会自动回退到非 daemon 编译，不影响结果。
+    - AGP 初始化阶段会打印 `CodexSandboxOffline/.android` 指标目录告警，但不阻断构建与测试。
+    - `adb` 未在 PATH，因此设备侧测试仍由用户在 Android Studio 执行。
+- 阻塞项：无代码阻塞（等待用户机测放行）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 04（Item 新增/编辑/软删除/恢复）。
+  2. 用户明确“机测通过”前，不进入 Step 05。
