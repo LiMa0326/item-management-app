@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-05）
-- 当前阶段：V0 Step 02 已完成，等待用户验证放行
+- 当前阶段：V0 Step 03 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 02（本地数据模型与数据库 schema v1），已提交代码与 schema 校验测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 03。
+- 说明：已完成 Step 03（Category 数据层与默认分类初始化），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 04。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -71,3 +71,22 @@
 - 下一步：
   1. 等待用户在 Android Studio 复测并确认 Step 02 验证通过。
   2. 在用户明确“验证通过”前，不进入 Step 03。
+
+### 2026-03-05 - Step 03：Category 数据层与默认分类初始化
+- 状态：`done`
+- 关键产出：
+  - 新增 `CategoryDao`，落地类别有序查询、按 ID 查询、默认分类计数、插入更新与排序更新 SQL。
+  - 新增 Category 领域模型与仓储接口：`Category`、`DefaultCategories`、`CategoryRepository`。
+  - 新增 `CategoryRepositoryImpl`，实现 `list/create/update/setArchived/reorder/ensureDefaultCategory` 六类能力，补齐名称非空校验与统一 ISO-8601 时间戳写入。
+  - 新增 Category UseCase 组：`ListCategoriesUseCase`、`CreateCategoryUseCase`、`UpdateCategoryUseCase`、`SetCategoryArchivedUseCase`、`ReorderCategoriesUseCase`、`EnsureDefaultCategoryUseCase`。
+  - 在 `MainActivity` 启动链路接入默认分类初始化：应用首启自动写入默认分类“电子产品”（`cat_electronics`，`is_system_default=1`）。
+  - 新增 `CategoryRepositoryImplTest`，覆盖默认分类幂等初始化、Category CRUD/归档过滤、reorder 排序结果校验。
+- 测试结果：
+  - 自动化（Agent）尝试执行：
+    - `:app:testDebugUnitTest`：未执行成功（环境缺少 Java 运行时，报错 `JAVA_HOME is not set and no 'java' command could be found in your PATH`）。
+  - 当前可执行测试结论：受本机终端 JDK 环境限制，Gradle 测试未能在 CLI 内完成；待用户在 Android Studio/JDK 完整环境复测。
+- 阻塞项：
+  - 终端环境未配置 JDK（`java` 命令缺失）。
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 03（默认分类初始化、类别新增/修改/归档/排序）。
+  2. 用户明确“机测通过”前，不进入 Step 04。

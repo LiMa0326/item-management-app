@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.itemmanagementandroid.data.local.dao.CategoryDao
 import com.example.itemmanagementandroid.data.local.entity.CategoryEntity
 import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
@@ -18,6 +19,8 @@ import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
     exportSchema = true
 )
 abstract class ItemManagementDatabase : RoomDatabase() {
+    abstract fun categoryDao(): CategoryDao
+
     companion object {
         const val DATABASE_NAME: String = "item_management.db"
 

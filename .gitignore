@@ -25,6 +25,8 @@ captures/
 Thumbs.db
 
 # Specifically for this repo layout
+.android-home/
+.gradle-user-home/
 apps/ItemManagementAndroid/.gradle/
 apps/ItemManagementAndroid/.gradle-user-home/
 apps/ItemManagementAndroid/.idea/
