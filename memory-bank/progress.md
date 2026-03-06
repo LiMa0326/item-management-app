@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-06）
-- 当前阶段：V0 Step 06 已完成，等待用户验证放行
+- 当前阶段：V0 Step 07 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 06（V0 导航骨架与全局状态管理），已提交代码并完成单测 + 导航设备集成测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 07。
+- 说明：已完成 Step 07（类别管理页面），已提交代码并完成单测 + 类别交互设备集成测试 + 导航回归测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 08。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -173,3 +173,27 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 06（导航主链路、回退行为、页面状态展示）。
   2. 用户明确“机测通过”前，不进入 Step 07。
+
+### 2026-03-06 - Step 07：类别管理页面
+- 状态：`done`
+- 关键产出：
+  - 扩展 `ui/di/AppDependencies`，新增并暴露 `CreateCategoryUseCase`、`UpdateCategoryUseCase`、`SetCategoryArchivedUseCase`、`ReorderCategoriesUseCase`，保留原有 `ListCategoriesUseCase`、`ListItemsUseCase`。
+  - 在 `ItemManagementApp` 完成 `CategoryViewModel` 新依赖注入与 `CategoryScreen` 新回调绑定。
+  - 新增 `CategoryListItemUiModel`，并将 `CategoryUiState.categories` 从 `List<Category>` 切换为带 `itemCount` 的 UI 模型列表。
+  - 重构 `CategoryViewModel`：新增 `createCategory/renameCategory/setCategoryArchived/moveCategoryUp/moveCategoryDown`，并实现“仅重排可见项、隐藏项相对顺序保持不变”的排序策略；类别列表加载时联动 `ListItemsUseCase(includeDeleted=false)` 统计每类物品数量。
+  - 重构 `CategoryScreen`：实现类别列表、创建/重命名对话框、归档/取消归档、上移/下移、物品数量显示、系统默认标识；继续保留导航主链路按钮。
+  - 新增 `CategoryScreenTestTags` 统一控件标识，并新增 `CategoryScreenInteractionTest` 覆盖创建、重命名、归档切换、上移/下移、includeArchived 切换交互回调。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:compileDebugKotlin`
+    - `:app:testDebugUnitTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.category.CategoryScreenInteractionTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`
+    - `:app:connectedDebugAndroidTest`
+  - 设备与环境备注：
+    - 设备：`SM-S901U1 - Android 14`。
+    - `CategoryScreenInteractionTest` 初版 `moveUp` 用例在小屏设备上因列表可视区域问题未触发；测试中补充 `performScrollToNode` 后稳定通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 07（新增类别、重命名、归档/取消归档、排序、物品数量显示）。
+  2. 用户明确“机测通过”前，不进入 Step 08。
