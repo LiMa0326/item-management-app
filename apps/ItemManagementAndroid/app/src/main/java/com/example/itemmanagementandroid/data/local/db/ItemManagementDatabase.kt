@@ -6,6 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.itemmanagementandroid.data.local.dao.CategoryDao
 import com.example.itemmanagementandroid.data.local.dao.ItemDao
+import com.example.itemmanagementandroid.data.local.dao.ItemPhotoDao
 import com.example.itemmanagementandroid.data.local.entity.CategoryEntity
 import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
@@ -22,6 +23,7 @@ import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
 abstract class ItemManagementDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
     abstract fun itemDao(): ItemDao
+    abstract fun itemPhotoDao(): ItemPhotoDao
 
     companion object {
         const val DATABASE_NAME: String = "item_management.db"

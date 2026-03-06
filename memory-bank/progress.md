@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-05）
-- 当前阶段：V0 Step 04 已完成，等待用户验证放行
+## 当前总览（截至 2026-03-06）
+- 当前阶段：V0 Step 05 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 04（Item 数据层含软删除/恢复），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 05。
+- 说明：已完成 Step 05（ItemPhoto 数据层与本地文件索引），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 06。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -114,3 +114,30 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 04（Item 新增/编辑/软删除/恢复）。
   2. 用户明确“机测通过”前，不进入 Step 05。
+
+### 2026-03-06 - Step 05：ItemPhoto 数据层与本地文件索引
+- 状态：`done`
+- 关键产出：
+  - 新增 `ItemPhotoDao` 与 `DeferredPhotoCleanupRow`，落地按物品查询、按 ID 查询、插入、按 ID 删除，以及基于 `items.deleted_at IS NOT NULL` 的延迟清理候选查询。
+  - 在 `ItemManagementDatabase` 新增 `itemPhotoDao()` 接口，完成 ItemPhoto 数据层数据库接入（`schema v1` 无迁移变更）。
+  - 新增照片领域模型与仓储契约：`ItemPhoto`、`ItemPhotoDraft`、`DeferredPhotoCleanupCandidate`、`PhotoRepository`。
+  - 新增 `PhotoRepositoryImpl`，实现 `listByItem/get/add/remove/listDeferredCleanupCandidates`，补齐字段归一化、尺寸合法性校验、删除幂等返回与延迟清理 marker 映射（`ITEM_SOFT_DELETED`）。
+  - 新增 `photo/PhotoBackupFileNameMapper`，固化备份文件名映射规则：
+    - `full` -> `<photoId>.<ext>`
+    - `thumbnails` -> `<photoId>_thumb.<ext>`
+    - 扩展名优先级：`contentType -> uri extension -> jpg`
+  - 新增 Photo UseCase 组：`ListItemPhotosUseCase`、`GetItemPhotoUseCase`、`AddItemPhotoUseCase`、`RemoveItemPhotoUseCase`、`ListDeferredPhotoCleanupCandidatesUseCase`。
+  - 新增单元测试：`PhotoRepositoryImplTest`、`PhotoBackupFileNameMapperTest`。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:compileDebugKotlin`
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.data.repository.PhotoRepositoryImplTest"`
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.photo.PhotoBackupFileNameMapperTest"`
+    - `:app:testDebugUnitTest`
+  - 构建备注：
+    - 在 CLI 中需设置 `ANDROID_USER_HOME` 到可写目录与 `GRADLE_OPTS=-Dkotlin.compiler.execution.strategy=in-process`。
+    - 并行执行 Gradle 任务时曾触发一次 KSP 目录创建冲突，改为串行后全部通过。
+- 阻塞项：无代码阻塞（等待用户机测放行）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 05（同一物品多照片、详情回读、删除幂等、软删除后延迟清理候选可见、恢复后候选消失）。
+  2. 用户明确“机测通过”前，不进入 Step 06。

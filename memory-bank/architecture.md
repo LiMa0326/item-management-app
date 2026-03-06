@@ -138,6 +138,13 @@
   - 在 `ItemRepositoryImpl` 固化 `tags_json` 与 `custom_attributes_json` 的编码/解码策略，并通过 `org.json` 限制 `customAttributes` 值类型为 `string|number|boolean`。
   - 固化软删除幂等语义：删除仅写入 `deleted_at`，恢复仅清空 `deleted_at`，两者均更新 `updated_at`。
   - 新增 `ItemRepositoryImplTest`（JVM），覆盖 Item CRUD、软删除/恢复可见性、幂等行为与 JSON 字段往返校验。
+- 2026-03-06
+  - 完成 Step 05：建立 ItemPhoto 数据层闭环（DAO/Repository/UseCase），覆盖 `listByItem/get/add/remove/listDeferredCleanupCandidates`。
+  - 在 `data/local/dao` 新增 `ItemPhotoDao` 与 `DeferredPhotoCleanupRow`，以 JOIN `items.deleted_at` 的方式派生“待延迟清理”候选，不改动 `schema v1`。
+  - 在 `domain/model` 固化 `ItemPhoto`、`ItemPhotoDraft` 与 `DeferredPhotoCleanupCandidate`，并冻结 marker 常量 `ITEM_SOFT_DELETED`。
+  - 新增 `PhotoRepositoryImpl`，统一执行字段归一化、宽高合法性校验（`> 0`）与删除幂等返回语义。
+  - 在 `photo` 模块新增 `PhotoBackupFileNameMapper`，固化备份文件名映射与扩展名解析优先级（`contentType -> uri extension -> jpg`）。
+  - 新增 `PhotoRepositoryImplTest` 与 `PhotoBackupFileNameMapperTest`，覆盖照片关联、删除幂等、延迟清理候选可见性与文件名映射规则。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -300,3 +307,46 @@
 ### 11.4 测试文件
 - `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
   - Item 数据层单测；覆盖 create/get/update、软删除/恢复、幂等行为与 `tags/customAttributes` JSON 往返及非法值校验。
+
+## 12. Step 05 新增文件职责（2026-03-06）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 12.1 DAO 与数据库接入
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemPhotoDao.kt`
+  - ItemPhoto 的 Room DAO；提供按 `item_id` 升序查询、按 `id` 查询、插入、按 `id` 删除与延迟清理候选查询能力。
+- `main/java/com/example/itemmanagementandroid/data/local/dao/model/DeferredPhotoCleanupRow.kt`
+  - 延迟清理候选 DAO 行映射；承载 `item_photos` 与 `items` JOIN 查询结果。
+- `main/java/com/example/itemmanagementandroid/data/local/db/ItemManagementDatabase.kt`
+  - 新增 `itemPhotoDao()` 访问入口，使 Photo Repository 可通过数据库契约访问 `item_photos` 表。
+
+### 12.2 Domain 与 Repository
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemPhoto.kt`
+  - ItemPhoto 领域模型，统一照片元数据对外输出结构。
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemPhotoDraft.kt`
+  - ItemPhoto 创建输入模型，承载 `itemId/localUri/thumbnailUri/contentType/width/height` 可写字段集合。
+- `main/java/com/example/itemmanagementandroid/domain/model/DeferredPhotoCleanupCandidate.kt`
+  - 延迟清理候选领域模型，固化 marker 常量 `ITEM_SOFT_DELETED`。
+- `main/java/com/example/itemmanagementandroid/domain/repository/PhotoRepository.kt`
+  - 照片仓储接口，定义 `listByItem/get/add/remove/listDeferredCleanupCandidates`。
+- `main/java/com/example/itemmanagementandroid/data/repository/PhotoRepositoryImpl.kt`
+  - 照片仓储实现；封装字段归一化、尺寸校验、创建时间写入、删除幂等返回与延迟清理候选映射逻辑。
+
+### 12.3 UseCase 与工具
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/ListItemPhotosUseCase.kt`
+  - 按物品查询照片列表入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/GetItemPhotoUseCase.kt`
+  - 按照片 ID 查询入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/AddItemPhotoUseCase.kt`
+  - 新增照片入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/RemoveItemPhotoUseCase.kt`
+  - 删除照片入口（返回是否成功删除）。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/ListDeferredPhotoCleanupCandidatesUseCase.kt`
+  - 延迟清理候选列表查询入口。
+- `main/java/com/example/itemmanagementandroid/photo/PhotoBackupFileNameMapper.kt`
+  - 备份文件名映射工具；输出 `full`/`thumbnails` 模式文件名并按既定优先级解析扩展名。
+
+### 12.4 测试文件
+- `test/java/com/example/itemmanagementandroid/data/repository/PhotoRepositoryImplTest.kt`
+  - Photo 数据层单测；覆盖多照片关联、按 ID 回读、删除幂等、延迟清理候选可见性与输入校验。
+- `test/java/com/example/itemmanagementandroid/photo/PhotoBackupFileNameMapperTest.kt`
+  - 文件名映射单测；覆盖 contentType 映射、URI 扩展名回退与 `jpg` 兜底规则。
