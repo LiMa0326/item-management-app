@@ -15,8 +15,12 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun CategoryScreen(
+    state: CategoryUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onToggleIncludeArchived: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -27,9 +31,37 @@ fun CategoryScreen(
     ) {
         Text(text = "Category Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Step 01 placeholder for category management page.",
+            text = "Loaded categories: ${state.categories.size}",
             style = MaterialTheme.typography.bodyMedium
         )
+        Text(
+            text = "Include archived: ${state.includeArchived}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (state.isLoading) {
+            Text(text = "Loading categories...", style = MaterialTheme.typography.bodySmall)
+        }
+        state.errorMessage?.let { errorMessage ->
+            Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        state.categories.take(3).forEach { category ->
+            Text(
+                text = "- ${category.name}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRefresh
+        ) {
+            Text(text = "Refresh")
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onToggleIncludeArchived(!state.includeArchived) }
+        ) {
+            Text(text = "Toggle Include Archived")
+        }
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(AppRoute.ItemList) }
@@ -38,7 +70,8 @@ fun CategoryScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }

@@ -15,8 +15,11 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun ItemDetailScreen(
+    state: ItemDetailUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -27,9 +30,25 @@ fun ItemDetailScreen(
     ) {
         Text(text = "Item Detail Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Step 01 placeholder for item detail page.",
+            text = "Current item: ${state.selectedItemName ?: "No item yet"}",
             style = MaterialTheme.typography.bodyMedium
         )
+        Text(
+            text = "Photo count: ${state.photoCount}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (state.isLoading) {
+            Text(text = "Loading item detail...", style = MaterialTheme.typography.bodySmall)
+        }
+        state.errorMessage?.let { errorMessage ->
+            Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRefresh
+        ) {
+            Text(text = "Refresh")
+        }
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(AppRoute.ItemEdit) }
@@ -38,7 +57,8 @@ fun ItemDetailScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }

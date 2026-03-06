@@ -15,8 +15,11 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun ItemEditScreen(
+    state: ItemEditUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -27,9 +30,29 @@ fun ItemEditScreen(
     ) {
         Text(text = "Item Edit Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Step 01 placeholder for item create/edit page.",
+            text = "Mode: ${state.mode.name}",
             style = MaterialTheme.typography.bodyMedium
         )
+        Text(
+            text = "Target item: ${state.targetItemName}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "Available categories: ${state.availableCategoryCount}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (state.isLoading) {
+            Text(text = "Loading edit context...", style = MaterialTheme.typography.bodySmall)
+        }
+        state.errorMessage?.let { errorMessage ->
+            Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRefresh
+        ) {
+            Text(text = "Refresh")
+        }
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(AppRoute.Settings) }
@@ -38,7 +61,8 @@ fun ItemEditScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }
