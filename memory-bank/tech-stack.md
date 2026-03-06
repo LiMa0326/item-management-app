@@ -1,4 +1,4 @@
-﻿# 技术栈推荐
+# 技术栈推荐
 ## 1. 总览（一页版）
 - Android（V0）默认：原生 Android（Kotlin）+ 单向数据流 UI + 本地离线优先。
 - 数据层默认：Repository + UseCase 分层；核心实体固定为 Category / Item / ItemPhoto，字段与版本策略对齐文档（含 `purchaseCurrency`、`customAttributes` JSON、`contentType`）。
