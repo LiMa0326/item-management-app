@@ -145,6 +145,12 @@
   - 新增 `PhotoRepositoryImpl`，统一执行字段归一化、宽高合法性校验（`> 0`）与删除幂等返回语义。
   - 在 `photo` 模块新增 `PhotoBackupFileNameMapper`，固化备份文件名映射与扩展名解析优先级（`contentType -> uri extension -> jpg`）。
   - 新增 `PhotoRepositoryImplTest` 与 `PhotoBackupFileNameMapperTest`，覆盖照片关联、删除幂等、延迟清理候选可见性与文件名映射规则。
+  - 完成 Step 06：建立 UI 全局导航状态与页面级状态管理闭环，覆盖 6 页面 `ViewModel + UiState` 最小真实数据读取链路。
+  - 将导航状态容器从 `AppNavigatorState` 迁移到 `AppNavigationViewModel + AppNavigationUiState`，统一提供 `navigate/goBack/canGoBack/currentRoute`。
+  - 在 `ui/di` 新增 `AppDependencies`，集中装配并暴露 `ListCategoriesUseCase`、`ListItemsUseCase`、`GetItemUseCase`、`ListItemPhotosUseCase`，防止 UI 直连 DAO/Repository。
+  - 在 `ui/viewmodel` 新增 `singleViewModelFactory`，统一页面 ViewModel 构建方式，保持非 Hilt 依赖注入路径可维护。
+  - 重构 `ItemManagementApp` 与 6 个 `Screen`，统一 Composable 签名为“state + callbacks”，并将 Back 行为绑定 `canGoBack`。
+  - 新增 `NavigationFlowIntegrationTest`（设备）与 `AppNavigationViewModelTest`（JVM），验证导航主链路与导航状态幂等逻辑。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -350,3 +356,74 @@
   - Photo 数据层单测；覆盖多照片关联、按 ID 回读、删除幂等、延迟清理候选可见性与输入校验。
 - `test/java/com/example/itemmanagementandroid/photo/PhotoBackupFileNameMapperTest.kt`
   - 文件名映射单测；覆盖 contentType 映射、URI 扩展名回退与 `jpg` 兜底规则。
+
+## 13. Step 06 新增文件职责（2026-03-06）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 13.1 构建与依赖装配
+- `../../gradle/libs.versions.toml`
+  - 新增 `lifecycle-viewmodel-ktx` 与 `lifecycle-viewmodel-compose` 依赖别名，支持 ViewModel + Compose 集成。
+- `app/build.gradle.kts`
+  - 接入 ViewModel 相关依赖，实现页面状态由 ViewModel 驱动。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 应用级依赖装配层；封装 DB/Repository 到 UseCase 的构建过程，仅对 UI 暴露 UseCase。
+- `main/java/com/example/itemmanagementandroid/ui/viewmodel/ViewModelFactory.kt`
+  - 通用 ViewModel Factory 工具；为非 DI 框架场景提供类型安全的 ViewModel 创建入口。
+
+### 13.2 导航状态管理
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationUiState.kt`
+  - 导航 UI 状态模型；统一承载 `backStack/currentRoute/canGoBack`。
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModel.kt`
+  - 导航状态 ViewModel；实现 `navigate`、`goBack` 与路由状态发布。
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigatorState.kt`（已删除）
+  - Step 01 内存态导航容器；在 Step 06 被导航 ViewModel 方案替代。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 应用 UI 根壳重构：改为消费导航 ViewModel 状态，按路由绑定页面 ViewModel 与 `UiState` 渲染。
+
+### 13.3 页面状态与 ViewModel
+- `main/java/com/example/itemmanagementandroid/ui/screens/home/HomeUiState.kt`
+  - 首页状态模型；承载类别数、物品数、加载态与错误态。
+- `main/java/com/example/itemmanagementandroid/ui/screens/home/HomeViewModel.kt`
+  - 首页状态管理；通过 `ListCategoriesUseCase`、`ListItemsUseCase` 读取最小真实读数。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryUiState.kt`
+  - 类别页状态模型；承载类别列表、includeArchived 开关、加载态与错误态。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryViewModel.kt`
+  - 类别页状态管理；通过 `ListCategoriesUseCase` 支持刷新与归档可见性切换。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListUiState.kt`
+  - 列表页状态模型；承载物品列表、includeDeleted 开关、加载态与错误态。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListViewModel.kt`
+  - 列表页状态管理；通过 `ListItemsUseCase` 支持刷新与软删除可见性切换。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailUiState.kt`
+  - 详情页状态模型；承载当前展示物品信息与照片数量。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailViewModel.kt`
+  - 详情页状态管理；采用“首条可见物品占位”策略，通过 `ListItemsUseCase + GetItemUseCase + ListItemPhotosUseCase` 组装最小详情数据。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditUiState.kt`
+  - 编辑页状态模型；承载编辑模式、目标物品占位名称、可用类别数。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModel.kt`
+  - 编辑页状态管理；采用“首条可见物品占位”策略，通过 `ListCategoriesUseCase + ListItemsUseCase + GetItemUseCase` 组装最小编辑上下文。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsUiState.kt`
+  - 设置页状态模型；承载离线优先文案与备份/同步占位开关状态。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsViewModel.kt`
+  - 设置页状态管理；提供设置页稳定状态源。
+
+### 13.4 页面渲染重构
+- `main/java/com/example/itemmanagementandroid/ui/screens/home/HomeScreen.kt`
+  - 改为接收 `HomeUiState` 与回调；展示最小真实读数并触发导航/刷新。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreen.kt`
+  - 改为接收 `CategoryUiState` 与回调；展示类别数据、归档可见开关与导航。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 改为接收 `ItemListUiState` 与回调；展示物品数据、软删除可见开关与导航。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 改为接收 `ItemDetailUiState` 与回调；展示详情占位数据、照片数与导航。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreen.kt`
+  - 改为接收 `ItemEditUiState` 与回调；展示编辑上下文占位状态与导航。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 改为接收 `SettingsUiState` 与回调；展示离线优先与占位配置状态。
+
+### 13.5 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 导航流程集成测试；断言 `Home -> Category -> ItemList -> ItemDetail -> ItemEdit -> Back` 主链路可达并可回退。
+- `androidTest/java/com/example/itemmanagementandroid/StartupSmokeTest.kt`
+  - 启动冒烟测试更新；断言首页关键入口按钮可见。
+- `test/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModelTest.kt`
+  - 导航状态单测；断言初始状态、幂等导航与回退行为正确。

@@ -15,8 +15,12 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun ItemListScreen(
+    state: ItemListUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
+    onToggleIncludeDeleted: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -27,9 +31,37 @@ fun ItemListScreen(
     ) {
         Text(text = "Item List Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Step 01 placeholder for item list page.",
+            text = "Loaded items: ${state.items.size}",
             style = MaterialTheme.typography.bodyMedium
         )
+        Text(
+            text = "Include deleted: ${state.includeDeleted}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        if (state.isLoading) {
+            Text(text = "Loading items...", style = MaterialTheme.typography.bodySmall)
+        }
+        state.errorMessage?.let { errorMessage ->
+            Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        state.items.take(3).forEach { item ->
+            Text(
+                text = "- ${item.name}",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRefresh
+        ) {
+            Text(text = "Refresh")
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onToggleIncludeDeleted(!state.includeDeleted) }
+        ) {
+            Text(text = "Toggle Include Deleted")
+        }
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(AppRoute.ItemDetail) }
@@ -38,13 +70,8 @@ fun ItemListScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemEdit) }
-        ) {
-            Text(text = "Go To Item Edit")
-        }
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }

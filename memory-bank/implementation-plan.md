@@ -1,4 +1,4 @@
-﻿# 实施计划（Implementation Plan）
+# 实施计划（Implementation Plan）
 ## 0. 读者与使用方式
 - 本计划面向 AI 开发者执行。严格按顺序执行：一次只做一个 Step，先通过该 Step 的验证测试，再进入下一步。
 - 执行过程中如果发现与文档冲突，优先级固定为：`memory-bank/design-document.md`（范围与里程碑） > `memory-bank/BACKUP_FORMAT.md`（备份格式） > `memory-bank/tech-stack.md`（实现建议）。

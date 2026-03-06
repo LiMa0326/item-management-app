@@ -15,6 +15,8 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun SettingsScreen(
+    state: SettingsUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -27,7 +29,15 @@ fun SettingsScreen(
     ) {
         Text(text = "Settings Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Step 01 placeholder for settings page.",
+            text = state.offlineFirstMessage,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "Cloud backup enabled: ${state.cloudBackupEnabled}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "Sync enabled: ${state.syncEnabled}",
             style = MaterialTheme.typography.bodyMedium
         )
         Button(
@@ -38,7 +48,8 @@ fun SettingsScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }

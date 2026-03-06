@@ -16,6 +16,7 @@ class StartupSmokeTest {
     @Test
     fun appLaunchesToHomeScreen() {
         composeRule.onNodeWithText("Home Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Step 01 placeholder for home dashboard.").assertIsDisplayed()
+        composeRule.onNodeWithText("Go To Category").assertIsDisplayed()
+        composeRule.onNodeWithText("Refresh").assertIsDisplayed()
     }
 }

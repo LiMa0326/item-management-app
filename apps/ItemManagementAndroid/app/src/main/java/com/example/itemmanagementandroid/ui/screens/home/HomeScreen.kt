@@ -15,8 +15,11 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @Composable
 fun HomeScreen(
+    state: HomeUiState,
+    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -26,33 +29,25 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(text = "Home Screen", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            text = "Step 01 placeholder for home dashboard.",
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Text(text = "Categories: ${state.categoryCount}", style = MaterialTheme.typography.bodyMedium)
+        Text(text = "Items: ${state.itemCount}", style = MaterialTheme.typography.bodyMedium)
+        if (state.isLoading) {
+            Text(text = "Loading home data...", style = MaterialTheme.typography.bodySmall)
+        }
+        state.errorMessage?.let { errorMessage ->
+            Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onRefresh
+        ) {
+            Text(text = "Refresh")
+        }
         Button(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onNavigate(AppRoute.Category) }
         ) {
             Text(text = "Go To Category")
-        }
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemList) }
-        ) {
-            Text(text = "Go To Item List")
-        }
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemDetail) }
-        ) {
-            Text(text = "Go To Item Detail")
-        }
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemEdit) }
-        ) {
-            Text(text = "Go To Item Edit")
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
@@ -62,7 +57,8 @@ fun HomeScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onBack() }
+            enabled = canGoBack,
+            onClick = onBack
         ) {
             Text(text = "Back")
         }

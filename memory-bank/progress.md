@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-06）
-- 当前阶段：V0 Step 05 已完成，等待用户验证放行
+- 当前阶段：V0 Step 06 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 05（ItemPhoto 数据层与本地文件索引），已提交代码与单测；等待用户在 Android Studio 编译并机测确认后再进入 Step 06。
+- 说明：已完成 Step 06（V0 导航骨架与全局状态管理），已提交代码并完成单测 + 导航设备集成测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 07。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -141,3 +141,35 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 05（同一物品多照片、详情回读、删除幂等、软删除后延迟清理候选可见、恢复后候选消失）。
   2. 用户明确“机测通过”前，不进入 Step 06。
+
+### 2026-03-06 - Step 06：V0 导航骨架与全局状态管理
+- 状态：`done`
+- 关键产出：
+  - 将应用导航状态从 `AppNavigatorState` 迁移到 `AppNavigationViewModel + AppNavigationUiState`，统一管理 `currentRoute`、`canGoBack` 与 back stack。
+  - 新增应用级依赖装配层 `ui/di/AppDependencies`，集中构建并暴露 `ListCategoriesUseCase`、`ListItemsUseCase`、`GetItemUseCase`、`ListItemPhotosUseCase`，确保 UI 不直接访问 DAO/Repository/DB。
+  - 为 6 个页面落地 `UiState + ViewModel`：
+    - `Home`：读取类别数与物品数；
+    - `Category`：读取类别列表（支持 includeArchived 开关）；
+    - `ItemList`：读取物品列表（支持 includeDeleted 开关）；
+    - `ItemDetail`：读取“首条可见物品 + 照片数量”；
+    - `ItemEdit`：读取“编辑模式 + 目标物品占位 + 可用类别数”；
+    - `Settings`：提供离线优先与备份/同步占位状态文案。
+  - 重构 6 个 `Screen` 的 Composable 签名为“`state + callbacks`”模式，页面只渲染状态并派发事件。
+  - 固化导航主链路按钮流：`Home -> Category -> ItemList -> ItemDetail -> ItemEdit -> Back`，并统一 `Back` 按钮受 `canGoBack` 约束。
+  - 新增测试：
+    - `NavigationFlowIntegrationTest`（androidTest）：覆盖主链路跳转与回退断言。
+    - `AppNavigationViewModelTest`（JVM）：覆盖导航状态与幂等导航行为。
+  - 更新 `StartupSmokeTest` 断言，改为校验首页关键入口按钮（`Go To Category`、`Refresh`）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:compileDebugKotlin`
+    - `:app:testDebugUnitTest`
+    - `:app:uninstallDebug :app:uninstallDebugAndroidTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`
+  - 设备与环境备注：
+    - 设备：`SM-S901U1 - Android 14`。
+    - 设备测试首次执行时，PowerShell 对 `-Pandroid.testInstrumentationRunnerArguments.class=...` 参数发生拆分；改为 `gradlew --%` 后命令稳定执行并通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 06（导航主链路、回退行为、页面状态展示）。
+  2. 用户明确“机测通过”前，不进入 Step 07。
