@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-06）
-- 当前阶段：V0 Step 07 已完成，等待用户验证放行
+- 当前阶段：V0 Step 08 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 07（类别管理页面），已提交代码并完成单测 + 类别交互设备集成测试 + 导航回归测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 08。
+- 说明：已完成 Step 08（物品列表过滤与排序），已提交代码并完成单测 + 列表交互设备测试 + 导航/启动回归 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 09。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -197,3 +197,36 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 07（新增类别、重命名、归档/取消归档、排序、物品数量显示）。
   2. 用户明确“机测通过”前，不进入 Step 08。
+
+### 2026-03-06 - Step 08：物品列表页面（过滤与排序）
+- 状态：`done`
+- 关键产出：
+  - 新增列表查询契约：`ItemListQuery`、`ItemListSortOption`，并扩展 `ItemRepository`/`ListItemsUseCase` 支持 query 入口，同时保留 `includeDeleted` 兼容调用。
+  - 在 `ItemRepositoryImpl` 落地 Step 08 列表语义：
+    - 类别过滤（`categoryId`）；
+    - 排序项 `RECENTLY_ADDED`、`RECENTLY_UPDATED`、`PURCHASE_DATE`、`PURCHASE_PRICE`；
+    - 购买日期与价格空值统一后置；
+    - 稳定兜底排序 `updatedAt DESC -> createdAt DESC -> id ASC`。
+  - 重构 `ItemListUiState` 与 `ItemListViewModel`：
+    - 新增 `sortOption`、`selectedCategoryId`、`categoryFilters`、`hasAnyItemsInCurrentMode`；
+    - 新增交互入口 `setCategoryFilter`、`setSortOption`；
+    - 接入 `ListCategoriesUseCase(includeArchived=true)`，筛选项支持归档类别显示。
+  - 重构 `ItemListScreen`：新增类别筛选区（含 `All`）、排序切换区、空状态与无结果状态文案，并补充 `ItemListScreenTestTags`；保留导航按钮 `Go To Item Detail`、`Back`。
+  - 新增设备测试 `ItemListScreenInteractionTest`，覆盖筛选/排序回调、空状态/无结果状态、导航按钮回调。
+  - 扩展 `ItemRepositoryImplTest`，新增 Step 08 数据层用例：类别过滤、日期排序空值后置、价格降序空值后置、软删除与类别过滤组合。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:compileDebugKotlin`
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.data.repository.ItemRepositoryImplTest"`
+    - `:app:testDebugUnitTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenInteractionTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.StartupSmokeTest`
+    - `:app:connectedDebugAndroidTest`（全量，19 项设备测试）
+  - 设备与环境备注：
+    - 设备：`SM-S901U1 - Android 14`。
+    - 首次运行设备测试出现 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`（历史安装包签名不一致）；执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后恢复正常并全部通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 08（类别过滤、四种排序、空状态/无结果状态、默认隐藏软删除项）。
+  2. 用户明确“机测通过”前，不进入 Step 09。

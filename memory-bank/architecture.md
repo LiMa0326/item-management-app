@@ -156,6 +156,12 @@
   - 固化排序规则：采用 Up/Down 交互，不做拖拽；`includeArchived=false` 时仅重排可见分类，隐藏分类保持相对顺序。
   - 在 `CategoryScreen` 新增创建与重命名对话框、系统默认标识、归档状态标识与每行操作按钮，并补充 `testTag` 契约。
   - 新增 `CategoryScreenInteractionTest`（设备），覆盖创建、重命名、归档切换、上移/下移与 includeArchived 切换交互回调；在小屏场景通过 `performScrollToNode` 稳定 `moveUp` 用例。
+  - 完成 Step 08：建立物品列表页过滤与排序闭环，覆盖 `类别过滤 + 四种排序 + 空状态/无结果状态`。
+  - 在 `domain/model` 新增 `ItemListQuery` 与 `ItemListSortOption`，统一 Repository 与 UseCase 的列表查询契约。
+  - 在 `ItemRepositoryImpl` 固化排序语义：`RECENTLY_ADDED`、`RECENTLY_UPDATED`、`PURCHASE_DATE(null last)`、`PURCHASE_PRICE(null last)`，并统一稳定兜底排序 `updated_at DESC -> created_at DESC -> id ASC`。
+  - 在 `ItemListViewModel` 接入 `ListCategoriesUseCase(includeArchived=true)`，固化类别筛选包含归档项且默认 `All`；保留 `includeDeleted=false` 默认行为。
+  - 在 `ItemListScreen` 新增筛选/排序交互区、归档标识文案与 `ItemListScreenTestTags`，同时保留主链路按钮 `Go To Item Detail/Back`。
+  - 新增 `ItemListScreenInteractionTest`（设备）与 `ItemRepositoryImplTest`（JVM）Step 08 用例，覆盖列表过滤、排序空值后置、回调交互与状态文案可见性。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -461,3 +467,38 @@
 ### 14.4 测试文件
 - `androidTest/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreenInteractionTest.kt`
   - 类别页交互设备测试；覆盖创建、重命名、归档切换、上移/下移、includeArchived 切换触发回调。
+
+## 15. Step 08 新增/修改文件职责（2026-03-06）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 15.1 领域查询契约
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemListSortOption.kt`
+  - 物品列表排序枚举；固定 4 种排序策略（最近添加、最近更新、购买日期、价格）。
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemListQuery.kt`
+  - 物品列表查询参数模型；统一承载 `includeDeleted/categoryId/sortOption`。
+- `main/java/com/example/itemmanagementandroid/domain/repository/ItemRepository.kt`
+  - 扩展 `list(query: ItemListQuery)` 主查询入口，并保留 `list(includeDeleted)` 兼容入口。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/item/ListItemsUseCase.kt`
+  - 扩展 `invoke(query: ItemListQuery)` 入口，并保留 `invoke(includeDeleted)` 兼容入口。
+
+### 15.2 数据层排序与过滤
+- `main/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImpl.kt`
+  - 在列表查询链路接入 category 过滤与 4 种排序语义，固化 `purchaseDate/purchasePrice` 空值后置规则与稳定兜底排序。
+
+### 15.3 列表页状态与交互
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListCategoryFilterUiModel.kt`
+  - 列表页类别筛选 UI 模型，承载 `id/name/isArchived`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListUiState.kt`
+  - 扩展列表状态：`sortOption`、`selectedCategoryId`、`categoryFilters`、`hasAnyItemsInCurrentMode`，并新增空状态/无结果状态派生字段。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListViewModel.kt`
+  - 接入 `ListCategoriesUseCase`，新增 `setCategoryFilter`、`setSortOption`，统一加载类别筛选项与查询结果。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 新增类别筛选区（含 All 与归档标识）、排序切换区、空状态/无结果状态文案与测试标识；保留 Step 06 主链路导航按钮。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 更新 `ItemListViewModel` 注入参数，补齐 `ListCategoriesUseCase` 依赖与列表页新回调绑定。
+
+### 15.4 测试文件
+- `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
+  - 新增 Step 08 数据层用例：类别过滤、购买日期排序空值后置、价格降序空值后置、软删除与类别过滤组合。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 新增列表页交互设备测试；覆盖类别筛选、排序切换、空状态/无结果状态文案与导航按钮回调。

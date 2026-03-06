@@ -4,6 +4,8 @@ import com.example.itemmanagementandroid.data.local.dao.ItemDao
 import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 import com.example.itemmanagementandroid.data.repository.json.ItemJsonCodec
 import com.example.itemmanagementandroid.domain.model.ItemDraft
+import com.example.itemmanagementandroid.domain.model.ItemListQuery
+import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -194,6 +196,150 @@ class ItemRepositoryImplTest {
         assertEquals(1.5, fetched.customAttributes["doubleValue"])
         assertEquals(false, fetched.customAttributes["flag"])
         assertEquals("text", fetched.customAttributes["note"])
+    }
+
+    @Test
+    fun list_filtersByCategory() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "A-1"
+            )
+        )
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_b",
+                name = "B-1"
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                categoryId = "cat_a",
+                sortOption = ItemListSortOption.RECENTLY_UPDATED
+            )
+        )
+
+        assertEquals(1, result.size)
+        assertEquals("cat_a", result.first().categoryId)
+        assertEquals("A-1", result.first().name)
+    }
+
+    @Test
+    fun list_purchaseDateSort_descendingAndNullsLast() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "No Date",
+                purchaseDate = null
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Date 2024",
+                purchaseDate = "2024-01-01"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Date 2025",
+                purchaseDate = "2025-12-31"
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                sortOption = ItemListSortOption.PURCHASE_DATE
+            )
+        )
+
+        assertEquals(
+            listOf("Date 2025", "Date 2024", "No Date"),
+            result.map { item -> item.name }
+        )
+    }
+
+    @Test
+    fun list_purchasePriceSort_descendingAndNullsLast() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "No Price",
+                purchasePrice = null
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Price 12",
+                purchasePrice = 12.0
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Price 200",
+                purchasePrice = 200.0
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                sortOption = ItemListSortOption.PURCHASE_PRICE
+            )
+        )
+
+        assertEquals(
+            listOf("Price 200", "Price 12", "No Price"),
+            result.map { item -> item.name }
+        )
+    }
+
+    @Test
+    fun list_includeDeletedFalseWithCategoryFilter_hidesSoftDeleted() = runBlocking {
+        val active = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Active A"
+            )
+        )
+        clock.advanceSeconds(1)
+        val deleted = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Deleted A"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_b",
+                name = "Active B"
+            )
+        )
+        repository.softDelete(deleted.id)
+
+        val activeOnly = repository.list(
+            query = ItemListQuery(
+                includeDeleted = false,
+                categoryId = "cat_a"
+            )
+        )
+        val includeDeleted = repository.list(
+            query = ItemListQuery(
+                includeDeleted = true,
+                categoryId = "cat_a"
+            )
+        )
+
+        assertEquals(listOf(active.id), activeOnly.map { it.id })
+        assertEquals(2, includeDeleted.size)
     }
 
     private class FakeItemDao : ItemDao {
