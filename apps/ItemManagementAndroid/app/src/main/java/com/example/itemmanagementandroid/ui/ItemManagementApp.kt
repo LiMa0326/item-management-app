@@ -91,6 +91,7 @@ fun ItemManagementApp() {
                 val itemListViewModelFactory = remember(dependencies) {
                     singleViewModelFactory {
                         ItemListViewModel(
+                            listCategoriesUseCase = dependencies.listCategoriesUseCase,
                             listItemsUseCase = dependencies.listItemsUseCase
                         )
                     }
@@ -104,6 +105,8 @@ fun ItemManagementApp() {
                     onBack = navigationViewModel::goBack,
                     onRefresh = itemListViewModel::refresh,
                     onToggleIncludeDeleted = itemListViewModel::setIncludeDeleted,
+                    onCategoryFilterChanged = itemListViewModel::setCategoryFilter,
+                    onSortOptionChanged = itemListViewModel::setSortOption,
                     modifier = Modifier.fillMaxSize()
                 )
             }

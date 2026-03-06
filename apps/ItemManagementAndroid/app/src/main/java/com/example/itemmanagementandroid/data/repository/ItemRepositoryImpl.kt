@@ -6,6 +6,8 @@ import com.example.itemmanagementandroid.data.repository.json.ItemJsonCodec
 import com.example.itemmanagementandroid.data.repository.json.OrgJsonItemJsonCodec
 import com.example.itemmanagementandroid.domain.model.Item
 import com.example.itemmanagementandroid.domain.model.ItemDraft
+import com.example.itemmanagementandroid.domain.model.ItemListQuery
+import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.domain.repository.ItemRepository
 import java.time.Clock
 import java.time.Instant
@@ -17,13 +19,22 @@ class ItemRepositoryImpl(
     private val idGenerator: () -> String = { UUID.randomUUID().toString() },
     private val jsonCodec: ItemJsonCodec = OrgJsonItemJsonCodec()
 ) : ItemRepository {
-    override suspend fun list(includeDeleted: Boolean): List<Item> {
-        val entities = if (includeDeleted) {
+    override suspend fun list(query: ItemListQuery): List<Item> {
+        val entities = if (query.includeDeleted) {
             itemDao.listAllOrdered()
         } else {
             itemDao.listActiveOrdered()
         }
-        return entities.map(::toDomain)
+
+        val filtered = if (query.categoryId == null) {
+            entities
+        } else {
+            entities.filter { entity -> entity.categoryId == query.categoryId }
+        }
+
+        return filtered
+            .map(::toDomain)
+            .sortedWith(comparatorFor(query.sortOption))
     }
 
     override suspend fun get(itemId: String): Item? {
@@ -105,6 +116,61 @@ class ItemRepositoryImpl(
         return requireNotNull(itemDao.getById(itemId)) {
             "Item not found: $itemId"
         }
+    }
+
+    private fun comparatorFor(sortOption: ItemListSortOption): Comparator<Item> {
+        return Comparator { left, right ->
+            val primary = when (sortOption) {
+                ItemListSortOption.RECENTLY_ADDED -> right.createdAt.compareTo(left.createdAt)
+                ItemListSortOption.RECENTLY_UPDATED -> right.updatedAt.compareTo(left.updatedAt)
+                ItemListSortOption.PURCHASE_DATE -> compareNullableDescending(
+                    left = left.purchaseDate,
+                    right = right.purchaseDate
+                )
+                ItemListSortOption.PURCHASE_PRICE -> compareNullableDescending(
+                    left = left.purchasePrice,
+                    right = right.purchasePrice
+                )
+            }
+            if (primary != 0) {
+                primary
+            } else {
+                compareStableFallback(left = left, right = right)
+            }
+        }
+    }
+
+    private fun <T : Comparable<T>> compareNullableDescending(
+        left: T?,
+        right: T?
+    ): Int {
+        if (left == null && right == null) {
+            return 0
+        }
+        if (left == null) {
+            return 1
+        }
+        if (right == null) {
+            return -1
+        }
+        return right.compareTo(left)
+    }
+
+    private fun compareStableFallback(
+        left: Item,
+        right: Item
+    ): Int {
+        val updatedCompare = right.updatedAt.compareTo(left.updatedAt)
+        if (updatedCompare != 0) {
+            return updatedCompare
+        }
+
+        val createdCompare = right.createdAt.compareTo(left.createdAt)
+        if (createdCompare != 0) {
+            return createdCompare
+        }
+
+        return left.id.compareTo(right.id)
     }
 
     private fun nowIsoString(): String = Instant.now(clock).toString()
