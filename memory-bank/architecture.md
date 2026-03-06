@@ -151,6 +151,11 @@
   - 在 `ui/viewmodel` 新增 `singleViewModelFactory`，统一页面 ViewModel 构建方式，保持非 Hilt 依赖注入路径可维护。
   - 重构 `ItemManagementApp` 与 6 个 `Screen`，统一 Composable 签名为“state + callbacks”，并将 Back 行为绑定 `canGoBack`。
   - 新增 `NavigationFlowIntegrationTest`（设备）与 `AppNavigationViewModelTest`（JVM），验证导航主链路与导航状态幂等逻辑。
+  - 完成 Step 07：建立类别页完整交互闭环，覆盖 `列表展示/创建/重命名/归档切换/排序调整`，并显示每类未软删物品数量。
+  - 在 `CategoryViewModel` 接入 `Create/Update/SetArchived/Reorder` UseCase 与 `ListItemsUseCase`，固化计数统计口径 `includeDeleted=false`。
+  - 固化排序规则：采用 Up/Down 交互，不做拖拽；`includeArchived=false` 时仅重排可见分类，隐藏分类保持相对顺序。
+  - 在 `CategoryScreen` 新增创建与重命名对话框、系统默认标识、归档状态标识与每行操作按钮，并补充 `testTag` 契约。
+  - 新增 `CategoryScreenInteractionTest`（设备），覆盖创建、重命名、归档切换、上移/下移与 includeArchived 切换交互回调；在小屏场景通过 `performScrollToNode` 稳定 `moveUp` 用例。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -427,3 +432,32 @@
   - 启动冒烟测试更新；断言首页关键入口按钮可见。
 - `test/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModelTest.kt`
   - 导航状态单测；断言初始状态、幂等导航与回退行为正确。
+
+## 14. Step 07 新增/修改文件职责（2026-03-06）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 14.1 依赖装配与注入
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 扩展 Category 用例装配，新增暴露 `CreateCategoryUseCase`、`UpdateCategoryUseCase`、`SetCategoryArchivedUseCase`、`ReorderCategoriesUseCase`。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 扩展 `CategoryViewModel` 注入参数，绑定类别页新增回调：创建、重命名、归档切换、上移、下移。
+
+### 14.2 类别页状态与业务逻辑
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryListItemUiModel.kt`
+  - 类别页行级 UI 模型，承载 `id/name/isArchived/isSystemDefault/itemCount`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryUiState.kt`
+  - 将类别集合从领域模型切换为 `CategoryListItemUiModel`，服务于页面展示与交互。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryViewModel.kt`
+  - 新增类别页交互闭环方法：`createCategory`、`renameCategory`、`setCategoryArchived`、`moveCategoryUp`、`moveCategoryDown`。
+  - 列表加载时联动 `ListItemsUseCase(includeDeleted=false)` 统计每类物品数量。
+  - 固化重排算法：归档隐藏场景下仅重排可见分类，隐藏分类相对位置不变。
+
+### 14.3 类别页 UI 渲染
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreen.kt`
+  - 从“占位页”升级为可操作页面：类别列表、创建/重命名对话框、归档/反归档、上移/下移、系统默认标识、物品数量显示。
+  - 保留 Step 06 导航主链路按钮（`Go To Item List`、`Back`）以确保主链路回归稳定。
+  - 新增 `CategoryScreenTestTags`，统一定义关键控件测试标识。
+
+### 14.4 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreenInteractionTest.kt`
+  - 类别页交互设备测试；覆盖创建、重命名、归档切换、上移/下移、includeArchived 切换触发回调。

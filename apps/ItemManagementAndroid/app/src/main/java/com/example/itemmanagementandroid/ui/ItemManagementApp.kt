@@ -60,7 +60,12 @@ fun ItemManagementApp() {
                 val categoryViewModelFactory = remember(dependencies) {
                     singleViewModelFactory {
                         CategoryViewModel(
-                            listCategoriesUseCase = dependencies.listCategoriesUseCase
+                            listCategoriesUseCase = dependencies.listCategoriesUseCase,
+                            listItemsUseCase = dependencies.listItemsUseCase,
+                            createCategoryUseCase = dependencies.createCategoryUseCase,
+                            updateCategoryUseCase = dependencies.updateCategoryUseCase,
+                            setCategoryArchivedUseCase = dependencies.setCategoryArchivedUseCase,
+                            reorderCategoriesUseCase = dependencies.reorderCategoriesUseCase
                         )
                     }
                 }
@@ -73,6 +78,11 @@ fun ItemManagementApp() {
                     onBack = navigationViewModel::goBack,
                     onRefresh = categoryViewModel::refresh,
                     onToggleIncludeArchived = categoryViewModel::setIncludeArchived,
+                    onCreateCategory = categoryViewModel::createCategory,
+                    onRenameCategory = categoryViewModel::renameCategory,
+                    onSetArchived = categoryViewModel::setCategoryArchived,
+                    onMoveCategoryUp = categoryViewModel::moveCategoryUp,
+                    onMoveCategoryDown = categoryViewModel::moveCategoryDown,
                     modifier = Modifier.fillMaxSize()
                 )
             }
