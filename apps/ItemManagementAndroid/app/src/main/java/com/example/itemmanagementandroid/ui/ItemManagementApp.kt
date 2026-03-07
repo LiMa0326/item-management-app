@@ -109,6 +109,7 @@ fun ItemManagementApp() {
                     onBack = navigationViewModel::goBack,
                     onRefresh = itemListViewModel::refresh,
                     onToggleIncludeDeleted = itemListViewModel::setIncludeDeleted,
+                    onSearchKeywordChanged = itemListViewModel::setSearchKeyword,
                     onCategoryFilterChanged = itemListViewModel::setCategoryFilter,
                     onSortOptionChanged = itemListViewModel::setSortOption,
                     modifier = Modifier.fillMaxSize()

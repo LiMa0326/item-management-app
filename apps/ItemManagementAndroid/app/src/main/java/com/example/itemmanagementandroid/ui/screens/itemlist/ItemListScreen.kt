@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ fun ItemListScreen(
     onBack: () -> Unit,
     onRefresh: () -> Unit,
     onToggleIncludeDeleted: (Boolean) -> Unit,
+    onSearchKeywordChanged: (String) -> Unit,
     onCategoryFilterChanged: (String?) -> Unit,
     onSortOptionChanged: (ItemListSortOption) -> Unit,
     modifier: Modifier = Modifier
@@ -47,6 +49,16 @@ fun ItemListScreen(
         Text(
             text = "Include deleted: ${state.includeDeleted}",
             style = MaterialTheme.typography.bodyMedium
+        )
+        OutlinedTextField(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(ItemListScreenTestTags.SEARCH_INPUT),
+            value = state.searchKeyword,
+            onValueChange = onSearchKeywordChanged,
+            singleLine = true,
+            label = { Text(text = "Search Items") },
+            placeholder = { Text(text = "Search name/description/place/tags") }
         )
 
         Text(text = "Category Filter", style = MaterialTheme.typography.titleSmall)
@@ -210,6 +222,7 @@ private fun ItemListSortOption.label(): String {
 }
 
 object ItemListScreenTestTags {
+    const val SEARCH_INPUT = "item_list_search_input"
     const val CATEGORY_FILTER_ROW = "item_list_category_filter_row"
     const val CATEGORY_FILTER_ALL_BUTTON = "item_list_category_filter_all_button"
     const val SORT_ROW = "item_list_sort_row"

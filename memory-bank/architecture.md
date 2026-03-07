@@ -179,6 +179,11 @@
   - 在 `ItemManagementApp` 的 `ItemEdit` 分支新增 `LaunchedEffect(currentRoute.itemId)`，确保每次进入 `ItemEdit(null)` 都触发 `CREATE` 空表单重置。
   - 在数据层下沉“全局重名禁止（未删除范围，trim + case-insensitive）”：`ItemDao` 新增规范化名称冲突查询，`ItemRepositoryImpl.create/update` 统一抛出 `DuplicateItemNameException`，`ItemEditViewModel` 精准映射到 `fieldErrors.name`。
   - 新增 `ItemEditViewModelTest`（JVM）与 `ItemEditFlowIntegrationTest`（设备），覆盖“连续 New Item 空表单”与“重名创建拦截”回归链路。
+  - 完成 Step 11：实现 V0 搜索最小闭环，在 `ItemListQuery` 新增 `searchKeyword` 并在 `ItemDao` 引入统一查询入口 `listByQuery(...)`，支持 `includeDeleted + category + keyword` 组合过滤。
+  - 在 `ItemRepositoryImpl` 固化关键词标准化与 LIKE 转义策略（`%`、`_`、`\`），冻结搜索语义：`name/description/purchasePlace` 子串匹配 + `tags` 整词匹配。
+  - 在 `ItemListUiState/ItemListViewModel/ItemListScreen` 接入“输入即搜索”链路，并将 `hasAnyItemsInCurrentMode` 口径更新为“同 includeDeleted + 同类别 + 不带 keyword”。
+  - 新增 `ItemSearchQueryIntegrationTest`（设备）与 `ItemRepositoryImplTest` Step 11 用例，覆盖 SQLite 搜索语义、组合过滤、排序一致性与 1k 抽样基线记录。
+  - 文档化搜索升级触发规则：当本地数据量 `> 3000` 且响应不可接受时，进入 FTS 升级任务（本步不引入 FTS）。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -623,3 +628,40 @@
   - 新增设备流程测试：`ItemList -> New Item -> Save -> Back -> New Item` 名称输入为空，且重名创建被拦截并展示错误文案。
 - `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
   - 扩展重名规则回归用例（创建重名拒绝、软删后同名允许、更新排除自身）。
+
+## 19. Step 11 新增/修改文件职责（2026-03-07）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 19.1 查询契约与数据层
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemListQuery.kt`
+  - 扩展 `searchKeyword` 查询参数，保持默认空值兼容既有调用路径。
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemDao.kt`
+  - 新增统一查询入口 `listByQuery(includeDeleted, categoryId, hasSearchKeyword, likePattern, tagWordPattern)`；
+  - 固化 SQL 搜索语义：`name/description/purchasePlace` 子串匹配 + `tags_json` 整词匹配；
+  - 固化组合过滤能力：`includeDeleted + categoryId + keyword`。
+- `main/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImpl.kt`
+  - 列表查询改走 `ItemDao.listByQuery(...)`；
+  - 下沉关键词规范化（trim + lowercase）与 LIKE 转义策略（`%`、`_`、`\`）；
+  - 保持 Step 08 排序语义与空值后置规则不变。
+
+### 19.2 列表页状态与交互
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListUiState.kt`
+  - 新增 `searchKeyword` UI 状态字段。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListViewModel.kt`
+  - 新增 `setSearchKeyword(...)` 事件并接入“输入即搜索”；
+  - 将 `hasAnyItemsInCurrentMode` 查询口径更新为“同 includeDeleted + 同 category + searchKeyword=null”。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 新增搜索输入框与测试标签 `SEARCH_INPUT`；
+  - 保持筛选、排序、导航按钮链路不变。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 在 `ItemListScreen` 绑定 `onSearchKeywordChanged = itemListViewModel::setSearchKeyword`。
+
+### 19.3 测试文件
+- `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
+  - 新增 Step 11 用例：字段命中、tags 整词匹配、搜索+类别组合过滤、搜索后排序一致性；
+  - 新增 `searchBaseline_1000Items_recordsElapsedMillis`，记录 1k 数据搜索抽样基线。
+- `androidTest/java/com/example/itemmanagementandroid/data/repository/ItemSearchQueryIntegrationTest.kt`
+  - 新增设备集成测试，验证真实 SQLite 查询语义与 tags 整词匹配规则。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 新增搜索输入交互回调测试（输入/清空）；
+  - 调整行点击断言为语义点击以适配小屏可视区域。

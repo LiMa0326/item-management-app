@@ -27,6 +27,7 @@ class ItemListViewModel(
         val state = _uiState.value
         load(
             includeDeleted = state.includeDeleted,
+            searchKeyword = state.searchKeyword,
             selectedCategoryId = state.selectedCategoryId,
             sortOption = state.sortOption
         )
@@ -39,6 +40,20 @@ class ItemListViewModel(
         val state = _uiState.value
         load(
             includeDeleted = includeDeleted,
+            searchKeyword = state.searchKeyword,
+            selectedCategoryId = state.selectedCategoryId,
+            sortOption = state.sortOption
+        )
+    }
+
+    fun setSearchKeyword(searchKeyword: String) {
+        if (_uiState.value.searchKeyword == searchKeyword) {
+            return
+        }
+        val state = _uiState.value
+        load(
+            includeDeleted = state.includeDeleted,
+            searchKeyword = searchKeyword,
             selectedCategoryId = state.selectedCategoryId,
             sortOption = state.sortOption
         )
@@ -51,6 +66,7 @@ class ItemListViewModel(
         val state = _uiState.value
         load(
             includeDeleted = state.includeDeleted,
+            searchKeyword = state.searchKeyword,
             selectedCategoryId = categoryId,
             sortOption = state.sortOption
         )
@@ -63,6 +79,7 @@ class ItemListViewModel(
         val state = _uiState.value
         load(
             includeDeleted = state.includeDeleted,
+            searchKeyword = state.searchKeyword,
             selectedCategoryId = state.selectedCategoryId,
             sortOption = sortOption
         )
@@ -70,14 +87,18 @@ class ItemListViewModel(
 
     private fun load(
         includeDeleted: Boolean,
+        searchKeyword: String,
         selectedCategoryId: String?,
         sortOption: ItemListSortOption
     ) {
+        val normalizedSearchKeyword = searchKeyword.trim()
+            .takeIf(String::isNotEmpty)
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(
                     isLoading = true,
                     includeDeleted = includeDeleted,
+                    searchKeyword = searchKeyword,
                     selectedCategoryId = selectedCategoryId,
                     sortOption = sortOption,
                     errorMessage = null
@@ -97,13 +118,15 @@ class ItemListViewModel(
                     query = ItemListQuery(
                         includeDeleted = includeDeleted,
                         categoryId = selectedCategoryId,
+                        searchKeyword = normalizedSearchKeyword,
                         sortOption = sortOption
                     )
                 )
                 val hasAnyItemsInCurrentMode = listItemsUseCase(
                     query = ItemListQuery(
                         includeDeleted = includeDeleted,
-                        categoryId = null,
+                        categoryId = selectedCategoryId,
+                        searchKeyword = null,
                         sortOption = sortOption
                     )
                 ).isNotEmpty()
@@ -111,6 +134,7 @@ class ItemListViewModel(
                 ItemListUiState(
                     isLoading = false,
                     includeDeleted = includeDeleted,
+                    searchKeyword = searchKeyword,
                     sortOption = sortOption,
                     selectedCategoryId = selectedCategoryId,
                     categoryFilters = categories,
@@ -124,6 +148,7 @@ class ItemListViewModel(
                     state.copy(
                         isLoading = false,
                         includeDeleted = includeDeleted,
+                        searchKeyword = searchKeyword,
                         selectedCategoryId = selectedCategoryId,
                         sortOption = sortOption,
                         errorMessage = throwable.message ?: "Failed to load items."

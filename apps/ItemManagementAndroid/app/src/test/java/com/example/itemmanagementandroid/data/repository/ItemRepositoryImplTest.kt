@@ -9,6 +9,7 @@ import com.example.itemmanagementandroid.domain.model.ItemListQuery
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
@@ -18,6 +19,7 @@ import org.junit.Test
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import kotlin.system.measureTimeMillis
 
 class ItemRepositoryImplTest {
     private lateinit var fakeItemDao: FakeItemDao
@@ -426,8 +428,211 @@ class ItemRepositoryImplTest {
         assertEquals(2, includeDeleted.size)
     }
 
+    @Test
+    fun list_searchKeyword_matchesNameDescriptionAndPurchasePlace_caseInsensitive() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Sony Camera"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Travel Lens",
+                description = "Great for SONY users"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_b",
+                name = "Random Item",
+                purchasePlace = "sony official store"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_b",
+                name = "Unrelated"
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                includeDeleted = false,
+                searchKeyword = "sOnY",
+                sortOption = ItemListSortOption.RECENTLY_UPDATED
+            )
+        )
+
+        assertEquals(3, result.size)
+        assertTrue(result.any { item -> item.name == "Sony Camera" })
+        assertTrue(result.any { item -> item.name == "Travel Lens" })
+        assertTrue(result.any { item -> item.name == "Random Item" })
+        assertFalse(result.any { item -> item.name == "Unrelated" })
+    }
+
+    @Test
+    fun list_searchKeyword_tagsMatchesWholeWordOnly() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Tag Word Match",
+                tags = listOf("audio")
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Tag Substring Only",
+                tags = listOf("audiophile")
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                searchKeyword = "audio",
+                sortOption = ItemListSortOption.RECENTLY_UPDATED
+            )
+        )
+
+        assertEquals(listOf("Tag Word Match"), result.map { item -> item.name })
+    }
+
+    @Test
+    fun list_searchKeyword_combinesWithCategoryFilter() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Sony A"
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_b",
+                name = "Sony B"
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                categoryId = "cat_a",
+                searchKeyword = "sony",
+                sortOption = ItemListSortOption.RECENTLY_UPDATED
+            )
+        )
+
+        assertEquals(1, result.size)
+        assertEquals("Sony A", result.first().name)
+    }
+
+    @Test
+    fun list_searchKeyword_preservesPurchasePriceSorting() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Sony No Price",
+                purchasePrice = null
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Sony Mid Price",
+                purchasePrice = 120.0
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "Sony High Price",
+                purchasePrice = 200.0
+            )
+        )
+        clock.advanceSeconds(1)
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_a",
+                name = "No Keyword",
+                purchasePrice = 999.0
+            )
+        )
+
+        val result = repository.list(
+            query = ItemListQuery(
+                searchKeyword = "sony",
+                sortOption = ItemListSortOption.PURCHASE_PRICE
+            )
+        )
+
+        assertEquals(
+            listOf("Sony High Price", "Sony Mid Price", "Sony No Price"),
+            result.map { item -> item.name }
+        )
+    }
+
+    @Test
+    fun searchBaseline_1000Items_recordsElapsedMillis() = runBlocking {
+        repeat(1000) { index ->
+            repository.create(
+                draft = ItemDraft(
+                    categoryId = if (index % 2 == 0) "cat_a" else "cat_b",
+                    name = "Item $index",
+                    description = if (index % 10 == 0) "target keyword" else "other",
+                    tags = if (index % 20 == 0) listOf("target") else emptyList()
+                )
+            )
+            clock.advanceSeconds(1)
+        }
+
+        var resultCount = 0
+        val elapsedMs = measureTimeMillis {
+            resultCount = repository.list(
+                query = ItemListQuery(
+                    searchKeyword = "target",
+                    sortOption = ItemListSortOption.RECENTLY_UPDATED
+                )
+            ).size
+        }
+
+        assertTrue(resultCount > 0)
+        println("SEARCH_BASELINE_1000_MS=$elapsedMs")
+    }
+
     private class FakeItemDao : ItemDao {
         private val items: LinkedHashMap<String, ItemEntity> = linkedMapOf()
+
+        override suspend fun listByQuery(
+            includeDeleted: Int,
+            categoryId: String?,
+            hasSearchKeyword: Int,
+            likePattern: String,
+            tagWordPattern: String
+        ): List<ItemEntity> {
+            val keyword = extractKeywordFromLikePattern(likePattern)
+            return listAllOrdered()
+                .asSequence()
+                .filter { entity -> includeDeleted == 1 || entity.deletedAt == null }
+                .filter { entity -> categoryId == null || entity.categoryId == categoryId }
+                .filter { entity ->
+                    if (hasSearchKeyword == 0 || keyword == null) {
+                        true
+                    } else {
+                        entity.name.contains(keyword, ignoreCase = true) ||
+                            entity.description.orEmpty().contains(keyword, ignoreCase = true) ||
+                            entity.purchasePlace.orEmpty().contains(keyword, ignoreCase = true) ||
+                            hasExactTag(entity.tagsJson, keyword)
+                    }
+                }
+                .toList()
+        }
 
         override suspend fun listAllOrdered(): List<ItemEntity> {
             return items.values.sortedWith(
@@ -477,6 +682,36 @@ class ItemRepositoryImplTest {
             }
             items[item.id] = item
             return 1
+        }
+
+        private fun extractKeywordFromLikePattern(likePattern: String): String? {
+            if (likePattern.length < 2 || !likePattern.startsWith("%") || !likePattern.endsWith("%")) {
+                return null
+            }
+            val escapedKeyword = likePattern.substring(1, likePattern.length - 1)
+            val unescaped = StringBuilder(escapedKeyword.length)
+            var index = 0
+            while (index < escapedKeyword.length) {
+                val character = escapedKeyword[index]
+                if (character == '\\' && index + 1 < escapedKeyword.length) {
+                    unescaped.append(escapedKeyword[index + 1])
+                    index += 2
+                } else {
+                    unescaped.append(character)
+                    index += 1
+                }
+            }
+            return unescaped.toString()
+        }
+
+        private fun hasExactTag(tagsJson: String, keyword: String): Boolean {
+            if (tagsJson.isBlank()) {
+                return false
+            }
+            return tagsJson.split('|')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .any { tag -> tag.equals(keyword, ignoreCase = true) }
         }
     }
 
