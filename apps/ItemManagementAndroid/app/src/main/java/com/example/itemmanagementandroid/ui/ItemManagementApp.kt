@@ -34,7 +34,7 @@ fun ItemManagementApp() {
     Surface(
         modifier = Modifier.fillMaxSize()
     ) {
-        when (navigationState.currentRoute) {
+        when (val currentRoute = navigationState.currentRoute) {
             AppRoute.Home -> {
                 val homeViewModelFactory = remember(dependencies) {
                     singleViewModelFactory {
@@ -133,24 +133,42 @@ fun ItemManagementApp() {
                 )
             }
 
-            AppRoute.ItemEdit -> {
-                val itemEditViewModelFactory = remember(dependencies) {
+            is AppRoute.ItemEdit -> {
+                val itemEditViewModelFactory = remember(dependencies, currentRoute.itemId) {
                     singleViewModelFactory {
                         ItemEditViewModel(
                             listCategoriesUseCase = dependencies.listCategoriesUseCase,
-                            listItemsUseCase = dependencies.listItemsUseCase,
-                            getItemUseCase = dependencies.getItemUseCase
+                            getItemUseCase = dependencies.getItemUseCase,
+                            createItemUseCase = dependencies.createItemUseCase,
+                            updateItemUseCase = dependencies.updateItemUseCase,
+                            initialItemId = currentRoute.itemId
                         )
                     }
                 }
-                val itemEditViewModel: ItemEditViewModel = viewModel(factory = itemEditViewModelFactory)
+                val itemEditViewModel: ItemEditViewModel = viewModel(
+                    key = "item_edit_${currentRoute.itemId ?: "new"}",
+                    factory = itemEditViewModelFactory
+                )
                 val itemEditState by itemEditViewModel.uiState.collectAsState()
                 ItemEditScreen(
                     state = itemEditState,
                     canGoBack = navigationState.canGoBack,
-                    onNavigate = navigationViewModel::navigate,
                     onBack = navigationViewModel::goBack,
                     onRefresh = itemEditViewModel::refresh,
+                    onNameChanged = itemEditViewModel::setName,
+                    onCategorySelected = itemEditViewModel::setCategoryId,
+                    onPurchaseDateChanged = itemEditViewModel::setPurchaseDate,
+                    onPurchasePriceChanged = itemEditViewModel::setPurchasePriceInput,
+                    onPurchaseCurrencyChanged = itemEditViewModel::setPurchaseCurrency,
+                    onPurchasePlaceChanged = itemEditViewModel::setPurchasePlace,
+                    onDescriptionChanged = itemEditViewModel::setDescription,
+                    onTagsInputChanged = itemEditViewModel::setTagsInput,
+                    onCustomAttributeKeyChanged = itemEditViewModel::setCustomAttributeKey,
+                    onCustomAttributeValueChanged = itemEditViewModel::setCustomAttributeValue,
+                    onAddCustomAttributeRow = itemEditViewModel::addCustomAttributeRow,
+                    onRemoveCustomAttributeRow = itemEditViewModel::removeCustomAttributeRow,
+                    onSave = itemEditViewModel::save,
+                    onCancel = navigationViewModel::goBack,
                     modifier = Modifier.fillMaxSize()
                 )
             }

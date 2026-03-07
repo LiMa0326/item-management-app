@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-06）
-- 当前阶段：V0 Step 08 已完成，等待用户验证放行
+## 当前总览（截至 2026-03-07）
+- 当前阶段：V0 Step 09 已完成，等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 08（物品列表过滤与排序），已提交代码并完成单测 + 列表交互设备测试 + 导航/启动回归 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 09。
+- 说明：已完成 Step 09（物品新增/编辑页面），已提交代码并完成单测 + 编辑页交互设备测试 + 导航/启动回归；等待用户在 Android Studio 编译并机测确认后再进入 Step 10。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -230,3 +230,35 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 08（类别过滤、四种排序、空状态/无结果状态、默认隐藏软删除项）。
   2. 用户明确“机测通过”前，不进入 Step 09。
+
+### 2026-03-07 - Step 09：物品新增/编辑页面
+- 状态：`done`
+- 关键产出：
+  - 将 `AppRoute.ItemEdit` 从固定对象路由升级为 `AppRoute.ItemEdit(itemId: String?)`，支持新建与编辑双入口。
+  - 在 `ItemDetailScreen` 编辑入口传递 `selectedItemId`，在 `ItemListScreen` 新增“Go To Item Edit”按钮作为新建入口。
+  - 扩展 `AppDependencies`，新增 `CreateItemUseCase`、`UpdateItemUseCase` 并注入 `ItemEditViewModel`。
+  - 重构 `ItemEditUiState` 与 `ItemEditViewModel`，实现完整表单字段、字段级错误、保存状态、保存结果回显、取消不落库。
+  - 新增 `ItemEditFormMapper`，统一处理：
+    - `tags` 逗号拆分去重
+    - `purchasePrice` 可选数值解析
+    - `customAttributes` key-value 行解析（`boolean -> number -> string`）
+  - 重构 `ItemEditScreen` 为真实表单页面，补齐 `Save/Cancel`、属性行增删、错误提示与 `testTag` 契约。
+  - 新增测试：
+    - JVM：`ItemEditFormMapperTest`
+    - 设备：`ItemEditScreenInteractionTest`
+    - 更新：`NavigationFlowIntegrationTest`（编辑页回退断言改用 `Cancel` + 滚动）
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:testDebugUnitTest`
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.data.repository.ItemRepositoryImplTest"`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditScreenInteractionTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.StartupSmokeTest`
+    - `:app:connectedDebugAndroidTest`（全量，22 项设备测试）
+  - 环境备注：
+    - 设备测试在沙箱内会被 ADB 权限拦截，需提权执行；
+    - 首次提权全量执行曾出现失败，已定位并修复为测试用例问题，最终全量设备测试通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 09（空名称拦截、合法保存、扩展字段保存回显、新建/编辑入口行为）。
+  2. 用户明确“机测通过”前，不进入 Step 10。

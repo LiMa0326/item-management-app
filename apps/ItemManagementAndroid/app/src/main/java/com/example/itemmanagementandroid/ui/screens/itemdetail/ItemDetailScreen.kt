@@ -51,7 +51,7 @@ fun ItemDetailScreen(
         }
         Button(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemEdit) }
+            onClick = { onNavigate(AppRoute.ItemEdit(itemId = state.selectedItemId)) }
         ) {
             Text(text = "Go To Item Edit")
         }
