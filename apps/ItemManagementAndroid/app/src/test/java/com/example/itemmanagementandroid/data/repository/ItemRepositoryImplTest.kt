@@ -3,6 +3,7 @@ package com.example.itemmanagementandroid.data.repository
 import com.example.itemmanagementandroid.data.local.dao.ItemDao
 import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 import com.example.itemmanagementandroid.data.repository.json.ItemJsonCodec
+import com.example.itemmanagementandroid.domain.model.DuplicateItemNameException
 import com.example.itemmanagementandroid.domain.model.ItemDraft
 import com.example.itemmanagementandroid.domain.model.ItemListQuery
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
@@ -171,6 +172,89 @@ class ItemRepositoryImplTest {
         }
 
         assertTrue(exception.message!!.contains("customAttributes[nested]"))
+    }
+
+    @Test
+    fun create_rejectsDuplicateName_caseAndTrimInsensitive() = runBlocking {
+        repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "My Headphone"
+            )
+        )
+
+        val exception = assertThrows(DuplicateItemNameException::class.java) {
+            runBlocking {
+                repository.create(
+                    draft = ItemDraft(
+                        categoryId = "cat_other",
+                        name = "  my headphone  "
+                    )
+                )
+            }
+        }
+
+        assertEquals("Item name already exists.", exception.message)
+    }
+
+    @Test
+    fun create_allowsDuplicateNameWhenExistingIsSoftDeleted() = runBlocking {
+        val created = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Reusable Name"
+            )
+        )
+        repository.softDelete(created.id)
+
+        val recreated = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_other",
+                name = "  reusable name "
+            )
+        )
+
+        assertEquals("reusable name", recreated.name)
+        assertNull(recreated.deletedAt)
+    }
+
+    @Test
+    fun update_duplicateNamePolicy_excludesSelfAndRejectsOthers() = runBlocking {
+        val first = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "Unique A"
+            )
+        )
+        val second = repository.create(
+            draft = ItemDraft(
+                categoryId = "cat_other",
+                name = "Unique B"
+            )
+        )
+
+        val selfUpdate = repository.update(
+            itemId = first.id,
+            draft = ItemDraft(
+                categoryId = "cat_electronics",
+                name = "  unique a "
+            )
+        )
+        assertEquals("unique a", selfUpdate.name.lowercase())
+
+        val exception = assertThrows(DuplicateItemNameException::class.java) {
+            runBlocking {
+                repository.update(
+                    itemId = second.id,
+                    draft = ItemDraft(
+                        categoryId = "cat_other",
+                        name = "UNIQUE A"
+                    )
+                )
+            }
+        }
+
+        assertEquals("Item name already exists.", exception.message)
     }
 
     @Test
@@ -358,6 +442,25 @@ class ItemRepositoryImplTest {
 
         override suspend fun getById(itemId: String): ItemEntity? {
             return items[itemId]
+        }
+
+        override suspend fun countActiveByNormalizedName(name: String): Int {
+            val normalized = name.trim().lowercase()
+            return items.values.count { entity ->
+                entity.deletedAt == null && entity.name.trim().lowercase() == normalized
+            }
+        }
+
+        override suspend fun countActiveByNormalizedNameExcludingId(
+            name: String,
+            excludeItemId: String
+        ): Int {
+            val normalized = name.trim().lowercase()
+            return items.values.count { entity ->
+                entity.id != excludeItemId &&
+                    entity.deletedAt == null &&
+                    entity.name.trim().lowercase() == normalized
+            }
         }
 
         override suspend fun insert(item: ItemEntity): Long {

@@ -16,6 +16,8 @@ import com.example.itemmanagementandroid.domain.usecase.category.UpdateCategoryU
 import com.example.itemmanagementandroid.domain.usecase.item.CreateItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.GetItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.ListItemsUseCase
+import com.example.itemmanagementandroid.domain.usecase.item.RestoreItemUseCase
+import com.example.itemmanagementandroid.domain.usecase.item.SoftDeleteItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.UpdateItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotosUseCase
 
@@ -70,6 +72,14 @@ class AppDependencies(
 
     val updateItemUseCase: UpdateItemUseCase by lazy {
         UpdateItemUseCase(itemRepository)
+    }
+
+    val softDeleteItemUseCase: SoftDeleteItemUseCase by lazy {
+        SoftDeleteItemUseCase(itemRepository)
+    }
+
+    val restoreItemUseCase: RestoreItemUseCase by lazy {
+        RestoreItemUseCase(itemRepository)
     }
 
     val listItemPhotosUseCase: ListItemPhotosUseCase by lazy {

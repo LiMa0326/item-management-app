@@ -169,6 +169,16 @@
   - 新增 `ItemEditFormMapper`，固化 Step 09 表单映射规则：`tags` 逗号拆分去重、价格可选数值解析、`customAttributes` 值按 `boolean -> number -> string` 解析。
   - 新增 `ItemEditFormMapperTest`（JVM）与 `ItemEditScreenInteractionTest`（设备），并更新 `NavigationFlowIntegrationTest`，覆盖编辑页新增交互与回退链路。
   - 在 `ItemListScreen` 新增“Go To Item Edit”入口（新建模式），在 `ItemDetailScreen` 改为携带当前 `selectedItemId` 跳转编辑（编辑模式优先）。
+  - 完成 Step 10：将 `AppRoute.ItemDetail` 升级为可选参数路由（`itemId: String?`），支持“列表指定项详情 / 空参兜底详情”双路径。
+  - 在 `ui/di/AppDependencies` 新增 `SoftDeleteItemUseCase`、`RestoreItemUseCase` 暴露，详情页删除与恢复流程统一走 UseCase。
+  - 重构 `ItemDetailUiState`、`ItemDetailViewModel`、`ItemDetailScreen`：从占位详情升级为完整详情字段展示（含 `createdAt/updatedAt/deletedAt`、`tags`、`customAttributes`、照片元数据墙）与删除/恢复闭环交互。
+  - 在 `ItemManagementApp` 按 `itemId` 隔离 `ItemDetailViewModel` key，并在列表页路由进入时触发刷新，确保删除后返回默认列表不显示已删除项。
+  - 在 `ItemListScreen` 增加“行点击进入详情（携带 itemId）”行为，同时保留 `Go To Item Detail` 空参入口。
+  - 新增 `ItemDetailScreenInteractionTest`（设备），更新 `ItemListScreenInteractionTest` 与 `AppNavigationViewModelTest`，覆盖 Step 10 路由与详情交互回归。
+  - 完成 Step 10 bugfix：修复 `New Item` 重入复用旧数据问题，在 `ItemEditViewModel` 新增 `onRouteEntered(itemId)` 与 `requestedItemId` 并将 `refresh` 重载口径切换为当前路由请求态。
+  - 在 `ItemManagementApp` 的 `ItemEdit` 分支新增 `LaunchedEffect(currentRoute.itemId)`，确保每次进入 `ItemEdit(null)` 都触发 `CREATE` 空表单重置。
+  - 在数据层下沉“全局重名禁止（未删除范围，trim + case-insensitive）”：`ItemDao` 新增规范化名称冲突查询，`ItemRepositoryImpl.create/update` 统一抛出 `DuplicateItemNameException`，`ItemEditViewModel` 精准映射到 `fieldErrors.name`。
+  - 新增 `ItemEditViewModelTest`（JVM）与 `ItemEditFlowIntegrationTest`（设备），覆盖“连续 New Item 空表单”与“重名创建拦截”回归链路。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -544,3 +554,72 @@
   - 新增编辑页设备交互测试：空名称禁用保存、合法名称保存触发、扩展字段输入后保存触发。
 - `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
   - 更新编辑页回退断言路径，适配 Step 09 表单页滚动与 `Cancel` 回退行为。
+
+## 17. Step 10 新增/修改文件职责（2026-03-07）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 17.1 路由与依赖装配
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppRoute.kt`
+  - 将 `ItemDetail` 路由升级为 `data class ItemDetail(itemId: String?)`，支持“指定 item 详情 / 空参兜底”双入口。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 新增并暴露 `SoftDeleteItemUseCase`、`RestoreItemUseCase`，供详情页删除/恢复链路注入。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 在 `ItemDetail` 分支按 `itemId` 构建并缓存 `ItemDetailViewModel`，并绑定删除/恢复回调；在 `ItemList` 路由进入时触发刷新，确保列表与删除状态一致。
+
+### 17.2 详情页状态与业务逻辑
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailUiState.kt`
+  - 扩展为完整详情状态：基础字段、`tags`、`customAttributes`、`createdAt`、`updatedAt`、`deletedAt`、照片元数据列表、操作进行中标记与错误/结果消息。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailViewModel.kt`
+  - 接收 `initialItemId`，优先加载指定 item；为空时回退首条可见 item。
+  - 新增 `softDelete`、`restore` 事件，删除后保持详情上下文并切换到可恢复态，恢复后回到可删除态。
+  - 将 `ItemPhoto` 映射为详情页照片元数据 UI 模型，形成 Step 10 可读照片墙数据源。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 从占位页升级为完整详情渲染：字段区、照片元数据墙、编辑入口、删除/恢复入口与回退入口。
+  - 新增 `ItemDetailScreenTestTags`，统一详情页关键控件测试标签。
+
+### 17.3 列表页联动
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 新增行级点击导航，支持从列表直接进入指定 `itemId` 的详情页。
+  - 保留 `Go To Item Detail` 空参入口用于无选中项兜底，并将新建入口文案明确为 `New Item`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 编辑入口文案明确为 `Edit Item`，与列表页新建入口语义区分。
+
+### 17.4 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreenInteractionTest.kt`
+  - 新增详情页设备交互测试；覆盖字段展示、照片墙可见、删除入口触发、恢复入口触发。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 更新路由断言以适配 `AppRoute.ItemDetail(itemId)`，并新增“列表行点击传递 itemId”用例。
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 更新主链路断言：在详情页补充空态可见性校验，确保 `ItemDetail(itemId=null)` 兜底路径与编辑入口回退链路稳定。
+- `test/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModelTest.kt`
+  - 新增 `ItemDetail` data class 路由幂等导航断言，确保同参重复导航不重复入栈。
+
+## 18. Step 10 Bugfix 新增/修改文件职责（2026-03-07）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 18.1 路由重入与编辑态重置
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModel.kt`
+  - 新增 `onRouteEntered(itemId)` 与 `requestedItemId`，将路由请求态作为唯一加载源；修复 `refresh()` 历史回退导致 `New Item` 复用旧数据的问题。
+  - 调整保存后状态机：`CREATE` 保存成功后保留 `CREATE` 模式并回到空表单；`EDIT` 保存成功保持当前编辑态。
+  - 捕获 `DuplicateItemNameException` 并映射到 `fieldErrors.name`，避免被通用错误消息吞掉字段级反馈。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 在 `ItemEdit` 分支追加 `LaunchedEffect(currentRoute.itemId)` 调用 `itemEditViewModel.onRouteEntered(...)`，确保每次路由进入都同步 ViewModel 状态。
+
+### 18.2 数据层重名规则下沉
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemDao.kt`
+  - 新增规范化名称冲突查询：
+    - `countActiveByNormalizedName(name)`
+    - `countActiveByNormalizedNameExcludingId(name, excludeItemId)`
+  - 冻结判重口径：`deleted_at IS NULL` 且 `lower(trim(name))`。
+- `main/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImpl.kt`
+  - 在 `create/update` 内统一执行重名检查并抛出 `DuplicateItemNameException`，防止绕过 UI 直写数据层。
+- `main/java/com/example/itemmanagementandroid/domain/model/DuplicateItemNameException.kt`
+  - 新增业务异常类型，作为仓储层到 UI 层的重名语义契约。
+
+### 18.3 测试与验证文件
+- `test/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModelTest.kt`
+  - 新增 ViewModel 单测：连续 `ItemEdit(null)` 为空表单、`CREATE` 保存后保持空表单、重名异常映射到名称字段错误。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFlowIntegrationTest.kt`
+  - 新增设备流程测试：`ItemList -> New Item -> Save -> Back -> New Item` 名称输入为空，且重名创建被拦截并展示错误文案。
+- `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
+  - 扩展重名规则回归用例（创建重名拒绝、软删后同名允许、更新排除自身）。

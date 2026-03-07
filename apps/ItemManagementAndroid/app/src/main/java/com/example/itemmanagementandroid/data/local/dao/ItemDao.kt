@@ -18,6 +18,25 @@ interface ItemDao {
     @Query("SELECT * FROM items WHERE id = :itemId LIMIT 1")
     suspend fun getById(itemId: String): ItemEntity?
 
+    @Query(
+        """
+        SELECT COUNT(1) FROM items
+        WHERE deleted_at IS NULL
+          AND lower(trim(name)) = lower(trim(:name))
+        """
+    )
+    suspend fun countActiveByNormalizedName(name: String): Int
+
+    @Query(
+        """
+        SELECT COUNT(1) FROM items
+        WHERE deleted_at IS NULL
+          AND id != :excludeItemId
+          AND lower(trim(name)) = lower(trim(:name))
+        """
+    )
+    suspend fun countActiveByNormalizedNameExcludingId(name: String, excludeItemId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(item: ItemEntity): Long
 

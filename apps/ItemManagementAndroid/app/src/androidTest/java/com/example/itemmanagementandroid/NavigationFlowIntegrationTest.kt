@@ -30,7 +30,7 @@ class NavigationFlowIntegrationTest {
         composeRule.onNodeWithText("Go To Item Detail").performClick()
         composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Go To Item Edit").performClick()
+        composeRule.onNodeWithText("Edit Item").performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
 
         composeRule

@@ -3,6 +3,7 @@ package com.example.itemmanagementandroid.ui
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -97,6 +98,9 @@ fun ItemManagementApp() {
                     }
                 }
                 val itemListViewModel: ItemListViewModel = viewModel(factory = itemListViewModelFactory)
+                LaunchedEffect(Unit) {
+                    itemListViewModel.refresh()
+                }
                 val itemListState by itemListViewModel.uiState.collectAsState()
                 ItemListScreen(
                     state = itemListState,
@@ -111,17 +115,23 @@ fun ItemManagementApp() {
                 )
             }
 
-            AppRoute.ItemDetail -> {
-                val itemDetailViewModelFactory = remember(dependencies) {
+            is AppRoute.ItemDetail -> {
+                val itemDetailViewModelFactory = remember(dependencies, currentRoute.itemId) {
                     singleViewModelFactory {
                         ItemDetailViewModel(
                             listItemsUseCase = dependencies.listItemsUseCase,
                             getItemUseCase = dependencies.getItemUseCase,
-                            listItemPhotosUseCase = dependencies.listItemPhotosUseCase
+                            listItemPhotosUseCase = dependencies.listItemPhotosUseCase,
+                            softDeleteItemUseCase = dependencies.softDeleteItemUseCase,
+                            restoreItemUseCase = dependencies.restoreItemUseCase,
+                            initialItemId = currentRoute.itemId
                         )
                     }
                 }
-                val itemDetailViewModel: ItemDetailViewModel = viewModel(factory = itemDetailViewModelFactory)
+                val itemDetailViewModel: ItemDetailViewModel = viewModel(
+                    key = "item_detail_${currentRoute.itemId ?: "auto"}",
+                    factory = itemDetailViewModelFactory
+                )
                 val itemDetailState by itemDetailViewModel.uiState.collectAsState()
                 ItemDetailScreen(
                     state = itemDetailState,
@@ -129,6 +139,8 @@ fun ItemManagementApp() {
                     onNavigate = navigationViewModel::navigate,
                     onBack = navigationViewModel::goBack,
                     onRefresh = itemDetailViewModel::refresh,
+                    onSoftDelete = itemDetailViewModel::softDelete,
+                    onRestore = itemDetailViewModel::restore,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -149,6 +161,9 @@ fun ItemManagementApp() {
                     key = "item_edit_${currentRoute.itemId ?: "new"}",
                     factory = itemEditViewModelFactory
                 )
+                LaunchedEffect(currentRoute.itemId) {
+                    itemEditViewModel.onRouteEntered(currentRoute.itemId)
+                }
                 val itemEditState by itemEditViewModel.uiState.collectAsState()
                 ItemEditScreen(
                     state = itemEditState,

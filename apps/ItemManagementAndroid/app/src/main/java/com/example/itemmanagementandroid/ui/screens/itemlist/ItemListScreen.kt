@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -134,6 +135,7 @@ fun ItemListScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag(ItemListScreenTestTags.itemRow(item.id))
+                                .clickable { onNavigate(AppRoute.ItemDetail(itemId = item.id)) }
                                 .padding(vertical = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -174,7 +176,7 @@ fun ItemListScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON),
-            onClick = { onNavigate(AppRoute.ItemDetail) }
+            onClick = { onNavigate(AppRoute.ItemDetail()) }
         ) {
             Text(text = "Go To Item Detail")
         }
@@ -184,7 +186,7 @@ fun ItemListScreen(
                 .testTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON),
             onClick = { onNavigate(AppRoute.ItemEdit()) }
         ) {
-            Text(text = "Go To Item Edit")
+            Text(text = "New Item")
         }
         Button(
             modifier = Modifier
