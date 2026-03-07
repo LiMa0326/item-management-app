@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-07）
-- 当前阶段：V0 Step 09 已完成，等待用户验证放行
+- 当前阶段：V0 Step 10 已完成并完成 Step 10 bugfix（`New Item` 重置 + 全局重名拦截），等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 09（物品新增/编辑页面），已提交代码并完成单测 + 编辑页交互设备测试 + 导航/启动回归；等待用户在 Android Studio 编译并机测确认后再进入 Step 10。
+- 说明：已完成 Step 10（物品详情页与删除/恢复闭环）及后续 bugfix；已提交代码并完成单测 + ItemEdit 定向设备测试 + 导航回归 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 11。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -262,3 +262,58 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 09（空名称拦截、合法保存、扩展字段保存回显、新建/编辑入口行为）。
   2. 用户明确“机测通过”前，不进入 Step 10。
+
+### 2026-03-07 - Step 10：物品详情页与删除/恢复闭环
+- 状态：`done`
+- 关键产出：
+  - 将 `AppRoute.ItemDetail` 从对象路由升级为 `AppRoute.ItemDetail(itemId: String?)`，支持“指定 item 详情 / 空参兜底”双入口。
+  - 在 `ItemListScreen` 增加“行点击进入详情”能力：每行点击跳转 `AppRoute.ItemDetail(item.id)`；保留 `Go To Item Detail` 按钮作为 `itemId=null` 兜底入口。
+  - 优化新建/编辑入口文案语义：列表页新建按钮文案调整为 `New Item`，详情页编辑按钮文案调整为 `Edit Item`。
+  - 在 `AppDependencies` 新增并暴露 `SoftDeleteItemUseCase`、`RestoreItemUseCase`。
+  - 重构 `ItemDetailUiState`：扩展为完整字段视图（基础字段、`tags`、`customAttributes`、`createdAt`、`updatedAt`、`deletedAt`、照片元数据墙、操作状态与错误/结果提示）。
+  - 重构 `ItemDetailViewModel`：接收 `initialItemId`，优先加载指定 item；空参回退首条可见 item；新增 `softDelete/restore` 事件并保持详情上下文完成删除恢复闭环。
+  - 重构 `ItemDetailScreen`：从占位页升级为完整详情页，新增删除/恢复入口与 `ItemDetailScreenTestTags`；编辑入口支持无 item 时回退新建模式（`ItemEdit(null)`）。
+  - 在 `ItemManagementApp` 中按 `itemId` 隔离 `ItemDetailViewModel` key，并在列表页路由进入时通过 `LaunchedEffect` 刷新，保证删除返回列表后默认模式不显示已删项。
+  - 新增设备测试 `ItemDetailScreenInteractionTest`；更新 `ItemListScreenInteractionTest`（适配 `ItemDetail(itemId)` 路由断言并新增行点击用例）；更新 `AppNavigationViewModelTest`（覆盖 data class 路由幂等行为）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:testDebugUnitTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenInteractionTest`（3 项）
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（1 项）
+    - `:app:connectedDebugAndroidTest`（全量，26 项设备测试，设备 `SM-S901U1 - Android 14`）
+  - 执行备注：
+    - 首次 `:app:testDebugUnitTest` 命中编译缓存异常（`ItemManagementApp` unresolved 链式报错），执行 `:app:clean :app:compileDebugKotlin` 后恢复并通过。
+    - 首次设备测试编译失败为 `assertDoesNotExist` API 兼容问题，改为兼容断言后通过。
+    - 首次导航集成测试失败为详情页无 item 时编辑按钮禁用，按 Step 10 要求将编辑入口保持可用（空参走 `ItemEdit(null)`）后通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 10（详情字段/照片墙展示、删除后列表隐藏、显示已删除后详情恢复、恢复后列表重现）。
+  2. 用户明确“机测通过”前，不进入 Step 11。
+
+### 2026-03-07 - Step 10 Bugfix：`New Item` 空表单重入 + 全局重名拦截
+- 状态：`done`
+- 关键产出：
+  - 修复 `ItemEdit` 路由重入生命周期：在 `ItemEditViewModel` 新增 `onRouteEntered(itemId)` 与 `requestedItemId`，并在 `ItemManagementApp` 的 `ItemEdit` 分支通过 `LaunchedEffect(currentRoute.itemId)` 每次进入同步路由状态，确保连续点击 `New Item` 始终回到 `CREATE` 空表单。
+  - 修复 `refresh()` 回退逻辑：按 `requestedItemId` 重载，避免回退到历史 `editingItemId` 导致“新建复用旧记录”。
+  - 调整保存后行为：`CREATE` 保存成功后保持 `CREATE` 模式并清空表单（保留 `Item created.` 提示）；`EDIT` 保存成功保持编辑态。
+  - 新增全局重名规则（仅未删除范围，`trim + case-insensitive`）并下沉数据层：
+    - `ItemDao` 新增 `countActiveByNormalizedName` 与 `countActiveByNormalizedNameExcludingId`。
+    - `ItemRepositoryImpl.create/update` 新增冲突检查并抛出 `DuplicateItemNameException`。
+    - `ItemEditViewModel.save()` 捕获重名异常并映射到 `fieldErrors.name`，不走通用错误弹层。
+  - 新增/更新测试：
+    - JVM：`ItemRepositoryImplTest`（创建重名拒绝、软删后允许同名、更新排除自身）；
+    - JVM：新增 `ItemEditViewModelTest`（连续 `ItemEdit(null)` 为空表单、`CREATE` 保存后仍空表单、重名映射名称字段错误）；
+    - 设备：新增 `ItemEditFlowIntegrationTest`（`ItemList -> New Item -> Save -> Back -> New Item` 名称输入为空；重名创建显示 `Item name already exists.`）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:testDebugUnitTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest`（1 项）
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（1 项）
+    - `:app:connectedDebugAndroidTest`（全量，27 项设备测试，设备 `SM-S901U1 - Android 14`）
+  - 执行备注：
+    - 首次定向设备测试编译失败：`assertExists` 在当前 Compose 测试版本不可用，已改为兼容断言。
+    - 首次流程断言失败是测试断言口径问题（`assertTextEquals` 误把 `TextField` 标签文本算入值），已改为仅断言 `EditableText` 为空，复跑通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测本次 bugfix（连续 `New Item` 为空表单、保存后新建不串态、重名拦截文案）。
+  2. 用户明确“机测通过”前，不进入 Step 11。

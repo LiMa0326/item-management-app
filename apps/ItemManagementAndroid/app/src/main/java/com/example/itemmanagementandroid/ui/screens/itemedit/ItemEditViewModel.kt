@@ -2,6 +2,7 @@ package com.example.itemmanagementandroid.ui.screens.itemedit
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.itemmanagementandroid.domain.model.DuplicateItemNameException
 import com.example.itemmanagementandroid.domain.model.ItemDraft
 import com.example.itemmanagementandroid.domain.usecase.category.ListCategoriesUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.CreateItemUseCase
@@ -23,18 +24,25 @@ class ItemEditViewModel(
     private val _uiState = MutableStateFlow(ItemEditUiState())
     val uiState: StateFlow<ItemEditUiState> = _uiState.asStateFlow()
     private var nextCustomAttributeRowId: Long = 0
+    private var requestedItemId: String? = initialItemId
 
     init {
         load(
-            requestedItemId = initialItemId,
+            requestedItemId = requestedItemId,
             saveResultMessage = null
         )
     }
 
     fun refresh() {
-        val requestedItemId = _uiState.value.editingItemId ?: initialItemId
         load(
-            requestedItemId = requestedItemId,
+            requestedItemId = this.requestedItemId,
+            saveResultMessage = null
+        )
+    }
+
+    fun onRouteEntered(itemId: String?) {
+        load(
+            requestedItemId = itemId,
             saveResultMessage = null
         )
     }
@@ -226,16 +234,30 @@ class ItemEditViewModel(
                     "Item updated."
                 }
                 buildUiState(
-                    requestedItemId = savedItem.id,
+                    requestedItemId = if (stateSnapshot.editingItemId == null) null else savedItem.id,
                     saveResultMessage = saveResultMessage
                 )
             }.onSuccess { state ->
                 _uiState.value = state
             }.onFailure { throwable ->
+                val duplicateNameError = if (throwable is DuplicateItemNameException) {
+                    throwable.message ?: "Item name already exists."
+                } else {
+                    null
+                }
                 _uiState.update { state ->
                     state.copy(
                         isSaving = false,
-                        errorMessage = throwable.message ?: "Failed to save item."
+                        fieldErrors = if (duplicateNameError == null) {
+                            state.fieldErrors
+                        } else {
+                            state.fieldErrors.copy(name = duplicateNameError)
+                        },
+                        errorMessage = if (duplicateNameError == null) {
+                            throwable.message ?: "Failed to save item."
+                        } else {
+                            null
+                        }
                     )
                 }
             }
@@ -246,6 +268,7 @@ class ItemEditViewModel(
         requestedItemId: String?,
         saveResultMessage: String?
     ) {
+        this.requestedItemId = requestedItemId
         viewModelScope.launch {
             _uiState.update { state ->
                 state.copy(

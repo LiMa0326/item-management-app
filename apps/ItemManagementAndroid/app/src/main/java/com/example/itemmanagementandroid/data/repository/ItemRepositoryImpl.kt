@@ -4,6 +4,7 @@ import com.example.itemmanagementandroid.data.local.dao.ItemDao
 import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 import com.example.itemmanagementandroid.data.repository.json.ItemJsonCodec
 import com.example.itemmanagementandroid.data.repository.json.OrgJsonItemJsonCodec
+import com.example.itemmanagementandroid.domain.model.DuplicateItemNameException
 import com.example.itemmanagementandroid.domain.model.Item
 import com.example.itemmanagementandroid.domain.model.ItemDraft
 import com.example.itemmanagementandroid.domain.model.ItemListQuery
@@ -44,6 +45,7 @@ class ItemRepositoryImpl(
     override suspend fun create(draft: ItemDraft): Item {
         val now = nowIsoString()
         val normalizedDraft = normalizeDraft(draft)
+        requireUniqueNameForCreate(normalizedDraft.name)
         val entity = ItemEntity(
             id = idGenerator(),
             categoryId = normalizedDraft.categoryId,
@@ -67,6 +69,10 @@ class ItemRepositoryImpl(
         val existing = requireItem(itemId)
         val now = nowIsoString()
         val normalizedDraft = normalizeDraft(draft)
+        requireUniqueNameForUpdate(
+            name = normalizedDraft.name,
+            itemId = itemId
+        )
         val updated = existing.copy(
             categoryId = normalizedDraft.categoryId,
             name = normalizedDraft.name,
@@ -115,6 +121,18 @@ class ItemRepositoryImpl(
     private suspend fun requireItem(itemId: String): ItemEntity {
         return requireNotNull(itemDao.getById(itemId)) {
             "Item not found: $itemId"
+        }
+    }
+
+    private suspend fun requireUniqueNameForCreate(name: String) {
+        if (itemDao.countActiveByNormalizedName(name) > 0) {
+            throw DuplicateItemNameException()
+        }
+    }
+
+    private suspend fun requireUniqueNameForUpdate(name: String, itemId: String) {
+        if (itemDao.countActiveByNormalizedNameExcludingId(name, itemId) > 0) {
+            throw DuplicateItemNameException()
         }
     }
 

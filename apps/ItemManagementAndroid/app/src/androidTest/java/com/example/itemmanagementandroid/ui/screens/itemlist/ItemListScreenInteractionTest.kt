@@ -81,13 +81,13 @@ class ItemListScreenInteractionTest {
 
     @Test
     fun navigationButtons_triggerCallbacks() {
-        var navigatedToItemDetail = false
+        var navigatedToItemDetail: AppRoute.ItemDetail? = null
         var backInvoked = false
 
         setItemListContent(
             onNavigate = { route ->
-                if (route == AppRoute.ItemDetail) {
-                    navigatedToItemDetail = true
+                if (route is AppRoute.ItemDetail) {
+                    navigatedToItemDetail = route
                 }
             },
             onBack = { backInvoked = true }
@@ -96,8 +96,25 @@ class ItemListScreenInteractionTest {
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON).performClick()
         composeRule.onNodeWithTag(ItemListScreenTestTags.BACK_BUTTON).performClick()
 
-        assertTrue(navigatedToItemDetail)
+        assertEquals(null, navigatedToItemDetail?.itemId)
         assertTrue(backInvoked)
+    }
+
+    @Test
+    fun itemRowClick_navigatesWithItemId() {
+        var navigatedToItemDetail: AppRoute.ItemDetail? = null
+
+        setItemListContent(
+            onNavigate = { route ->
+                if (route is AppRoute.ItemDetail) {
+                    navigatedToItemDetail = route
+                }
+            }
+        )
+
+        composeRule.onNodeWithTag(ItemListScreenTestTags.itemRow("item_1")).performClick()
+
+        assertEquals("item_1", navigatedToItemDetail?.itemId)
     }
 
     private fun setItemListContent(
