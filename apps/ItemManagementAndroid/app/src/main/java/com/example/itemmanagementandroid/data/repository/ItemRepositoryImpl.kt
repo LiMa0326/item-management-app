@@ -12,6 +12,7 @@ import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.domain.repository.ItemRepository
 import java.time.Clock
 import java.time.Instant
+import java.util.Locale
 import java.util.UUID
 
 class ItemRepositoryImpl(
@@ -21,19 +22,19 @@ class ItemRepositoryImpl(
     private val jsonCodec: ItemJsonCodec = OrgJsonItemJsonCodec()
 ) : ItemRepository {
     override suspend fun list(query: ItemListQuery): List<Item> {
-        val entities = if (query.includeDeleted) {
-            itemDao.listAllOrdered()
-        } else {
-            itemDao.listActiveOrdered()
-        }
+        val normalizedSearchKeyword = normalizeSearchKeyword(query.searchKeyword)
+        val escapedSearchKeyword = normalizedSearchKeyword?.let(::escapeLikePattern)
+        val likePattern = escapedSearchKeyword?.let { "%$it%" } ?: "%"
+        val tagWordPattern = escapedSearchKeyword?.let { "%\"$it\"%" } ?: "%"
+        val entities = itemDao.listByQuery(
+            includeDeleted = if (query.includeDeleted) 1 else 0,
+            categoryId = query.categoryId,
+            hasSearchKeyword = if (normalizedSearchKeyword == null) 0 else 1,
+            likePattern = likePattern,
+            tagWordPattern = tagWordPattern
+        )
 
-        val filtered = if (query.categoryId == null) {
-            entities
-        } else {
-            entities.filter { entity -> entity.categoryId == query.categoryId }
-        }
-
-        return filtered
+        return entities
             .map(::toDomain)
             .sortedWith(comparatorFor(query.sortOption))
     }
@@ -192,6 +193,28 @@ class ItemRepositoryImpl(
     }
 
     private fun nowIsoString(): String = Instant.now(clock).toString()
+
+    private fun normalizeSearchKeyword(searchKeyword: String?): String? {
+        return searchKeyword
+            ?.trim()
+            ?.takeIf(String::isNotEmpty)
+            ?.lowercase(Locale.ROOT)
+    }
+
+    private fun escapeLikePattern(rawKeyword: String): String {
+        val escaped = StringBuilder(rawKeyword.length)
+        rawKeyword.forEach { character ->
+            when (character) {
+                '\\', '%', '_' -> {
+                    escaped.append('\\')
+                    escaped.append(character)
+                }
+
+                else -> escaped.append(character)
+            }
+        }
+        return escaped.toString()
+    }
 
     private fun toDomain(entity: ItemEntity): Item {
         return Item(

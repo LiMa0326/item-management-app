@@ -6,6 +6,7 @@ import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 data class ItemListUiState(
     val isLoading: Boolean = true,
     val includeDeleted: Boolean = false,
+    val searchKeyword: String = "",
     val sortOption: ItemListSortOption = ItemListSortOption.RECENTLY_UPDATED,
     val selectedCategoryId: String? = null,
     val categoryFilters: List<ItemListCategoryFilterUiModel> = emptyList(),

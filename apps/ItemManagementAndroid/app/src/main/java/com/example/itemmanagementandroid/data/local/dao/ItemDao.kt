@@ -9,6 +9,29 @@ import com.example.itemmanagementandroid.data.local.entity.ItemEntity
 
 @Dao
 interface ItemDao {
+    @Query(
+        """
+        SELECT * FROM items
+        WHERE (:includeDeleted = 1 OR deleted_at IS NULL)
+          AND (:categoryId IS NULL OR category_id = :categoryId)
+          AND (
+              :hasSearchKeyword = 0
+              OR lower(name) LIKE :likePattern ESCAPE '\'
+              OR lower(IFNULL(description, '')) LIKE :likePattern ESCAPE '\'
+              OR lower(IFNULL(purchase_place, '')) LIKE :likePattern ESCAPE '\'
+              OR lower(tags_json) LIKE :tagWordPattern ESCAPE '\'
+          )
+        ORDER BY updated_at DESC, created_at DESC
+        """
+    )
+    suspend fun listByQuery(
+        includeDeleted: Int,
+        categoryId: String?,
+        hasSearchKeyword: Int,
+        likePattern: String,
+        tagWordPattern: String
+    ): List<ItemEntity>
+
     @Query("SELECT * FROM items ORDER BY updated_at DESC, created_at DESC")
     suspend fun listAllOrdered(): List<ItemEntity>
 

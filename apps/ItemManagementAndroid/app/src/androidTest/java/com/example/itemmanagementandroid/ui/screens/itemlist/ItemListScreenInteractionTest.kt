@@ -1,11 +1,17 @@
 package com.example.itemmanagementandroid.ui.screens.itemlist
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.semantics.SemanticsActions
 import com.example.itemmanagementandroid.domain.model.Item
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.ui.navigation.AppRoute
@@ -31,6 +37,31 @@ class ItemListScreenInteractionTest {
 
         composeRule.onNodeWithTag(ItemListScreenTestTags.categoryFilterButton("cat_b")).performClick()
         assertEquals("cat_b", selectedCategory)
+    }
+
+    @Test
+    fun searchInput_changesTriggerCallback() {
+        var keyword = ""
+
+        setItemListContent(
+            onSearchKeywordChanged = { keyword = it }
+        )
+
+        composeRule.onNodeWithTag(ItemListScreenTestTags.SEARCH_INPUT).performTextInput("sony")
+        assertEquals("sony", keyword)
+    }
+
+    @Test
+    fun searchInput_clearRestoresEmptyKeyword() {
+        var keyword = "initial"
+
+        setItemListContent(
+            state = baseState().copy(searchKeyword = "sony"),
+            onSearchKeywordChanged = { keyword = it }
+        )
+
+        composeRule.onNodeWithTag(ItemListScreenTestTags.SEARCH_INPUT).performTextClearance()
+        assertEquals("", keyword)
     }
 
     @Test
@@ -105,6 +136,9 @@ class ItemListScreenInteractionTest {
         var navigatedToItemDetail: AppRoute.ItemDetail? = null
 
         setItemListContent(
+            state = baseState().copy(
+                categoryFilters = emptyList()
+            ),
             onNavigate = { route ->
                 if (route is AppRoute.ItemDetail) {
                     navigatedToItemDetail = route
@@ -112,7 +146,10 @@ class ItemListScreenInteractionTest {
             }
         )
 
-        composeRule.onNodeWithTag(ItemListScreenTestTags.itemRow("item_1")).performClick()
+        composeRule
+            .onNodeWithTag(ItemListScreenTestTags.itemRow("item_1"))
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
 
         assertEquals("item_1", navigatedToItemDetail?.itemId)
     }
@@ -121,6 +158,7 @@ class ItemListScreenInteractionTest {
         state: ItemListUiState = baseState(),
         onNavigate: (AppRoute) -> Unit = {},
         onBack: () -> Unit = {},
+        onSearchKeywordChanged: (String) -> Unit = {},
         onCategoryFilterChanged: (String?) -> Unit = {},
         onSortOptionChanged: (ItemListSortOption) -> Unit = {}
     ) {
@@ -132,8 +170,10 @@ class ItemListScreenInteractionTest {
                 onBack = onBack,
                 onRefresh = {},
                 onToggleIncludeDeleted = {},
+                onSearchKeywordChanged = onSearchKeywordChanged,
                 onCategoryFilterChanged = onCategoryFilterChanged,
-                onSortOptionChanged = onSortOptionChanged
+                onSortOptionChanged = onSortOptionChanged,
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
@@ -142,6 +182,7 @@ class ItemListScreenInteractionTest {
         return ItemListUiState(
             isLoading = false,
             includeDeleted = false,
+            searchKeyword = "",
             sortOption = ItemListSortOption.RECENTLY_UPDATED,
             selectedCategoryId = null,
             categoryFilters = listOf(

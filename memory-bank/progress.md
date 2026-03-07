@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-07）
-- 当前阶段：V0 Step 10 已完成并完成 Step 10 bugfix（`New Item` 重置 + 全局重名拦截），等待用户验证放行
+- 当前阶段：V0 Step 11 已完成（搜索最小实现），等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 10（物品详情页与删除/恢复闭环）及后续 bugfix；已提交代码并完成单测 + ItemEdit 定向设备测试 + 导航回归 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 11。
+- 说明：已完成 Step 11（全局搜索入口最小实现：ItemList 输入即搜索 + 类别过滤/排序联动），并通过 JVM 全量 + 定向设备测试 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 12。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -317,3 +317,37 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测本次 bugfix（连续 `New Item` 为空表单、保存后新建不串态、重名拦截文案）。
   2. 用户明确“机测通过”前，不进入 Step 11。
+
+### 2026-03-07 - Step 11：V0 搜索（最小实现）
+- 状态：`done`
+- 关键产出：
+  - 扩展 `ItemListQuery`，新增 `searchKeyword` 查询参数；保持默认值向后兼容。
+  - 在 `ItemDao` 新增统一查询入口 `listByQuery(...)`，支持 `includeDeleted + categoryId + searchKeyword` 组合过滤。
+  - 固化搜索语义：
+    - `name/description/purchasePlace`：大小写不敏感 + 子串匹配（`LIKE %kw%`）
+    - `tags`：整词匹配（`lower(tags_json) LIKE %"kw"%`）
+    - 空关键词跳过搜索条件。
+  - 在 `ItemRepositoryImpl` 下沉关键词标准化与 LIKE 转义（处理 `%`、`_`、`\`），并保持 Step 08 既有排序策略与空值后置规则不变。
+  - 重构 `ItemListUiState` / `ItemListViewModel` / `ItemListScreen`：
+    - 新增 `searchKeyword` 状态与 `setSearchKeyword(...)` 事件；
+    - 列表页新增搜索输入框（输入即搜索）；
+    - `hasAnyItemsInCurrentMode` 口径更新为“同 includeDeleted + 同类别 + 不带 keyword”。
+  - 在 `ItemManagementApp` 绑定 `onSearchKeywordChanged` 到 `ItemListViewModel`。
+  - 新增设备级 SQLite 语义回归测试：`ItemSearchQueryIntegrationTest`。
+  - 文档化升级触发规则：当本地数据量 `> 3000` 且搜索响应不可接受时，进入 FTS 升级任务（本步不实现 FTS）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `:app:testDebugUnitTest --tests "com.example.itemmanagementandroid.data.repository.ItemRepositoryImplTest"`
+    - `:app:testDebugUnitTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenInteractionTest`
+    - `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.data.repository.ItemSearchQueryIntegrationTest`
+    - `:app:connectedDebugAndroidTest`（全量，30 项设备测试）
+  - 设备与环境备注：
+    - 设备：`SM-S901U1 - Android 14`。
+    - `ItemListScreenInteractionTest` 的行点击用例在小屏下因可视区域不足出现不稳定，已改为语义点击断言稳定通过。
+  - 性能基线（Step 11 记录）：
+    - JVM 抽样基线（`ItemRepositoryImplTest.searchBaseline_1000Items_recordsElapsedMillis`）：`SEARCH_BASELINE_1000_MS=3`（Fake DAO 环境，仅用于趋势记录，不作为 SLA）。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 11（50 条关键词命中/未命中、搜索+类别过滤、搜索后排序切换、软删除开关组合）。
+  2. 用户明确“机测通过”前，不进入 Step 12。
