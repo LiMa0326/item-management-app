@@ -162,6 +162,13 @@
   - 在 `ItemListViewModel` 接入 `ListCategoriesUseCase(includeArchived=true)`，固化类别筛选包含归档项且默认 `All`；保留 `includeDeleted=false` 默认行为。
   - 在 `ItemListScreen` 新增筛选/排序交互区、归档标识文案与 `ItemListScreenTestTags`，同时保留主链路按钮 `Go To Item Detail/Back`。
   - 新增 `ItemListScreenInteractionTest`（设备）与 `ItemRepositoryImplTest`（JVM）Step 08 用例，覆盖列表过滤、排序空值后置、回调交互与状态文案可见性。
+- 2026-03-07
+  - 完成 Step 09：将 `AppRoute.ItemEdit` 从固定路由升级为可选参数路由（`itemId: String?`），并在 `ItemManagementApp` 按 `itemId` 隔离 `ItemEditViewModel` 实例。
+  - 在 `ui/di/AppDependencies` 新增 `CreateItemUseCase`、`UpdateItemUseCase` 暴露，编辑页保存流程统一走 UseCase，不允许 UI 直连 Repository。
+  - 重构 `ItemEditUiState`、`ItemEditViewModel`、`ItemEditScreen`：落地完整表单字段、字段级错误、保存态、取消操作、`customAttributes` 动态 key-value 行录入。
+  - 新增 `ItemEditFormMapper`，固化 Step 09 表单映射规则：`tags` 逗号拆分去重、价格可选数值解析、`customAttributes` 值按 `boolean -> number -> string` 解析。
+  - 新增 `ItemEditFormMapperTest`（JVM）与 `ItemEditScreenInteractionTest`（设备），并更新 `NavigationFlowIntegrationTest`，覆盖编辑页新增交互与回退链路。
+  - 在 `ItemListScreen` 新增“Go To Item Edit”入口（新建模式），在 `ItemDetailScreen` 改为携带当前 `selectedItemId` 跳转编辑（编辑模式优先）。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -502,3 +509,38 @@
   - 新增 Step 08 数据层用例：类别过滤、购买日期排序空值后置、价格降序空值后置、软删除与类别过滤组合。
 - `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
   - 新增列表页交互设备测试；覆盖类别筛选、排序切换、空状态/无结果状态文案与导航按钮回调。
+
+## 16. Step 09 新增/修改文件职责（2026-03-07）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 16.1 路由与依赖装配
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppRoute.kt`
+  - 将 `ItemEdit` 路由升级为 `data class ItemEdit(itemId: String?)`，支持“新建（null）/编辑（itemId）”双模式入口。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 新增并暴露 `CreateItemUseCase`、`UpdateItemUseCase`，供编辑页保存链路注入。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 在 `ItemEdit` 分支按 `itemId` 构建并缓存 `ItemEditViewModel`，绑定完整表单事件回调（字段更新、保存、取消、属性行增删）。
+
+### 16.2 编辑页状态、映射与业务逻辑
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditUiState.kt`
+  - 扩展为完整表单状态：字段值、类别选项、动态属性行、字段错误、加载/保存状态与保存结果提示。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFormMapper.kt`
+  - 新增编辑表单映射工具，统一 `tags/purchasePrice/customAttributes` 的解析与校验策略。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModel.kt`
+  - 改造为真实编辑闭环：按 `itemId` 回填、字段更新事件、保存校验、创建/更新提交、保存后回显刷新、取消不落库。
+
+### 16.3 编辑页 UI 与入口联动
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreen.kt`
+  - 从占位页升级为可编辑表单 UI，新增 `Save/Cancel`、动态 `customAttributes` 行编辑、测试标签与字段错误展示。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 编辑入口改为携带 `selectedItemId` 跳转 `AppRoute.ItemEdit(itemId)`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 新增“Go To Item Edit”按钮，作为新建模式入口（`AppRoute.ItemEdit()`）。
+
+### 16.4 测试文件
+- `test/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFormMapperTest.kt`
+  - 新增表单映射单测：空名称相关映射前置、价格解析、tags 归一化、`customAttributes` 类型解析与非法 key 校验。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreenInteractionTest.kt`
+  - 新增编辑页设备交互测试：空名称禁用保存、合法名称保存触发、扩展字段输入后保存触发。
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 更新编辑页回退断言路径，适配 Step 09 表单页滚动与 `Cancel` 回退行为。

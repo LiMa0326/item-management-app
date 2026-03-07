@@ -13,8 +13,10 @@ import com.example.itemmanagementandroid.domain.usecase.category.ListCategoriesU
 import com.example.itemmanagementandroid.domain.usecase.category.ReorderCategoriesUseCase
 import com.example.itemmanagementandroid.domain.usecase.category.SetCategoryArchivedUseCase
 import com.example.itemmanagementandroid.domain.usecase.category.UpdateCategoryUseCase
+import com.example.itemmanagementandroid.domain.usecase.item.CreateItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.GetItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.ListItemsUseCase
+import com.example.itemmanagementandroid.domain.usecase.item.UpdateItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotosUseCase
 
 class AppDependencies(
@@ -60,6 +62,14 @@ class AppDependencies(
 
     val getItemUseCase: GetItemUseCase by lazy {
         GetItemUseCase(itemRepository)
+    }
+
+    val createItemUseCase: CreateItemUseCase by lazy {
+        CreateItemUseCase(itemRepository)
+    }
+
+    val updateItemUseCase: UpdateItemUseCase by lazy {
+        UpdateItemUseCase(itemRepository)
     }
 
     val listItemPhotosUseCase: ListItemPhotosUseCase by lazy {

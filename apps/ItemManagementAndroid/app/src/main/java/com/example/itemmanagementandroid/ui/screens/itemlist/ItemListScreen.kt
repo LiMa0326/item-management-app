@@ -181,6 +181,14 @@ fun ItemListScreen(
         Button(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON),
+            onClick = { onNavigate(AppRoute.ItemEdit()) }
+        ) {
+            Text(text = "Go To Item Edit")
+        }
+        Button(
+            modifier = Modifier
+                .fillMaxWidth()
                 .testTag(ItemListScreenTestTags.BACK_BUTTON),
             enabled = canGoBack,
             onClick = onBack
@@ -209,6 +217,7 @@ object ItemListScreenTestTags {
     const val REFRESH_BUTTON = "item_list_refresh_button"
     const val TOGGLE_INCLUDE_DELETED_BUTTON = "item_list_toggle_include_deleted_button"
     const val GO_TO_ITEM_DETAIL_BUTTON = "item_list_go_to_item_detail_button"
+    const val GO_TO_ITEM_EDIT_BUTTON = "item_list_go_to_item_edit_button"
     const val BACK_BUTTON = "item_list_back_button"
 
     fun categoryFilterButton(categoryId: String): String = "item_list_filter_$categoryId"
