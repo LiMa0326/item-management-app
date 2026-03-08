@@ -206,12 +206,21 @@ fun ItemManagementApp() {
             }
 
             AppRoute.Settings -> {
-                val settingsViewModel: SettingsViewModel = viewModel()
+                val settingsViewModelFactory = remember(dependencies) {
+                    singleViewModelFactory {
+                        SettingsViewModel(
+                            exportLocalBackupUseCase = dependencies.exportLocalBackupUseCase
+                        )
+                    }
+                }
+                val settingsViewModel: SettingsViewModel = viewModel(factory = settingsViewModelFactory)
                 val settingsState by settingsViewModel.uiState.collectAsState()
                 SettingsScreen(
                     state = settingsState,
                     canGoBack = navigationState.canGoBack,
                     onNavigate = navigationViewModel::navigate,
+                    onExportModeSelected = settingsViewModel::setExportMode,
+                    onExportBackup = settingsViewModel::exportBackup,
                     onBack = navigationViewModel::goBack,
                     modifier = Modifier.fillMaxSize()
                 )

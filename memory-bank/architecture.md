@@ -190,6 +190,12 @@
   - 在 `ui` 层完成照片能力接线：`ItemEdit` 新增拍照/单选/多选/失败重试与自动建项导图；`ItemList` 行内封面缩略图；`ItemDetail` 照片墙实际图片渲染。
   - 完成 Android 接入：新增 `FileProvider` 与 `res/xml/file_paths.xml`，支持相机拍照输出到应用私有缓存路径。
   - 新增 `AndroidPhotoAssetProcessorIntegrationTest`（20 图输入）并通过设备全量测试（`connectedAndroidTest` 33 项，设备 `SM-S901U1 - Android 15`）。
+- 2026-03-08
+  - 完成 Step 13：落地本地备份导出闭环，新增 `BackupService.exportLocalBackup(exportMode)` 与三模式导出（`metadata_only/thumbnails/full`）。
+  - 在 `backup/export` 建立模块化实现链：快照采集、照片预处理、JSON 组装、ZIP 写入、错误分类与 checksums 扩展点（V0 默认 No-Op）。
+  - 冻结 Step 13 行为：导出目录优先 `getExternalFilesDir("backups")`（空时回退 `files/backups`）；`thumbnails/full` 任一缺图即失败中止，不降级不跳过。
+  - 在 `ui/di` 注入 `ExportLocalBackupUseCase`，将设置页升级为“单入口导出 + 模式选择 + 导出状态/路径展示”。
+  - 新增 `LocalBackupServiceTest`（JVM）、`BackupExportIntegrationTest`（设备）、`SettingsScreenInteractionTest`（设备），并通过设备全量回归（`connectedAndroidTest` 39 项，设备 `SM-S901U1 - Android 15`）。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -777,3 +783,64 @@
   - 负责以下回归覆盖：
     - 编辑保存返回详情后的自动刷新；
     - 从保存链路返回分类页后的 item count 自动刷新。
+
+## 22. Step 13 新增/修改文件职责（2026-03-08）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 22.1 备份导出契约与实现
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupService.kt`
+  - 备份导出统一契约，暴露 `exportLocalBackup(exportMode)`。
+- `main/java/com/example/itemmanagementandroid/backup/export/ExportMode.kt`
+  - 导出模式枚举与 wire 值映射（`metadata_only`、`thumbnails`、`full`）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupExportResult.kt`
+  - 导出结果模型（输出路径、大小、模式、导出时间、统计信息）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupStats.kt`
+  - 导出统计模型（`categories/items/photos`）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupExportException.kt`
+  - 导出错误分类（参数错误、I/O 错误、缺图失败）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupChecksumGenerator.kt`
+  - checksums 扩展点契约（供 V1/V2 开启 `checksums.json` 时复用）。
+- `main/java/com/example/itemmanagementandroid/backup/export/NoOpBackupChecksumGenerator.kt`
+  - V0 默认 checksums 实现（不生成 `checksums.json`）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupOutputDirectoryProvider.kt`
+  - 导出目录提供器抽象。
+- `main/java/com/example/itemmanagementandroid/backup/export/AndroidBackupOutputDirectoryProvider.kt`
+  - Android 目录策略实现：优先 `getExternalFilesDir("backups")`，回退 `files/backups`。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupSnapshot.kt`
+  - 导出快照聚合模型（Category/Item/ItemPhoto）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupSnapshotCollector.kt`
+  - 快照采集器：读取全量类别（含归档）、全量物品（含软删）与照片集合。
+- `main/java/com/example/itemmanagementandroid/backup/export/PreparedPhotoEntry.kt`
+  - 待打包照片描述模型（`fileName/kind/sourceFile` 等）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupPhotoPreparer.kt`
+  - 照片导出预处理：按 mode 选源图，执行文件名映射，缺图直接抛错中止。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupJsonEncoder.kt`
+  - 平台无关 JSON 编码器（UTF-8 输出）。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupJsonBuilder.kt`
+  - 构建 `manifest.json` 与 `data.json`，字段对齐 `BACKUP_FORMAT.md`。
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupZipWriter.kt`
+  - ZIP 写入器，固定顺序写入 `manifest -> data -> photos -> checksums(optional)`。
+- `main/java/com/example/itemmanagementandroid/backup/export/LocalBackupService.kt`
+  - Step 13 编排入口，串联采集/打包/写入并返回导出结果。
+
+### 22.2 UseCase 与应用接线
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/ExportLocalBackupUseCase.kt`
+  - UI 到备份服务的导出用例入口。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 注入 Step 13 备份导出依赖链并暴露 `exportLocalBackupUseCase`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsUiState.kt`
+  - 扩展设置页状态：导出模式、导出中状态、成功/失败消息、最近导出路径与时间。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsViewModel.kt`
+  - 接入导出状态机与错误映射，统一处理模式切换与导出请求。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 升级为“单入口导出”界面：模式选择 + 导出按钮 + 状态展示。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - Settings 路由分支改为工厂注入 `SettingsViewModel` 并绑定导出回调。
+
+### 22.3 Step 13 测试文件
+- `test/java/com/example/itemmanagementandroid/backup/export/LocalBackupServiceTest.kt`
+  - 覆盖三模式结构、字段完整性、缺图失败与 checksums 扩展点。
+- `androidTest/java/com/example/itemmanagementandroid/backup/BackupExportIntegrationTest.kt`
+  - 真机三模式导出解包校验；覆盖 `manifest/data/photos` 结构与关键字段。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
+  - 覆盖设置页模式切换、单入口导出点击与状态文案展示。
