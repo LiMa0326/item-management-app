@@ -3,6 +3,7 @@ package com.example.itemmanagementandroid.ui.screens.itemdetail
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -51,6 +52,7 @@ class ItemDetailScreenInteractionTest {
             )
         }
 
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.DELETE_BUTTON).performScrollTo()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.DELETE_BUTTON).assertIsDisplayed()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.DELETE_BUTTON).performClick()
 
@@ -75,6 +77,7 @@ class ItemDetailScreenInteractionTest {
             )
         }
 
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.RESTORE_BUTTON).performScrollTo()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.RESTORE_BUTTON).assertIsDisplayed()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.RESTORE_BUTTON).performClick()
 
@@ -105,6 +108,7 @@ class ItemDetailScreenInteractionTest {
             photos = listOf(
                 ItemDetailPhotoUiModel(
                     id = "photo_1",
+                    displayUri = "file:///photos/photo_1.jpg",
                     contentType = "image/jpeg",
                     localUri = "file:///photos/photo_1.jpg",
                     thumbnailUri = "file:///photos/photo_1_thumb.jpg",

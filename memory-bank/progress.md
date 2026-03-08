@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-07）
-- 当前阶段：V0 Step 11 已完成（搜索最小实现），等待用户验证放行
+- 当前阶段：V0 Step 12 已完成（照片处理策略与编辑页入口），等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 11（全局搜索入口最小实现：ItemList 输入即搜索 + 类别过滤/排序联动），并通过 JVM 全量 + 定向设备测试 + 全量设备测试；等待用户在 Android Studio 编译并机测确认后再进入 Step 12。
+- 说明：已完成 Step 12（拍照/选图导入、私有目录落盘、原图+缩略图生成、ItemEdit 自动建项、失败重试、列表封面缩略图、详情图展示），并通过 JVM 全量 + 全量设备测试（真机）；等待用户在 Android Studio 编译并机测确认后再进入 Step 13。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -351,3 +351,56 @@
 - 下一步：
   1. 用户在 Android Studio 编译并机测 Step 11（50 条关键词命中/未命中、搜索+类别过滤、搜索后排序切换、软删除开关组合）。
   2. 用户明确“机测通过”前，不进入 Step 12。
+
+### 2026-03-07 - Step 12：照片处理策略（编辑页入口）
+- 状态：`done`
+- 关键产出：
+  - 新增照片处理子系统：`Uri -> EXIF 方向矫正 -> 原图 JPEG(无 EXIF) + 缩略图 JPEG(长边 1280, 质量 85) -> 私有目录 files/photos/full|thumbs`。
+  - 新增导入编排与结果模型：`ImportItemPhotosUseCase`、`PhotoImportSummary`、`PhotoImportFailure`，支持部分失败汇总与重试。
+  - 扩展 `PhotoRepository` 与 DAO，新增按 itemIds 批量封面缩略图查询，供 `ItemList` 一次性加载封面，避免 N+1。
+  - 重构 `ItemEdit`：新增 `拍照/选单张/选多张/重试失败导入` 入口，新增导入状态文案与照片缩略图区。
+  - 落地“新建态加图自动建项”：若名称为空，自动生成 `New Item_yyyyMMdd_HHmmss` 后继续导图并切换编辑态。
+  - 更新 `ItemList` 与 `ItemDetail`：列表显示封面缩略图；详情照片墙展示实际图片（优先原图路径）。
+  - 完成 Android 接入：新增 `FileProvider` 与 `res/xml/file_paths.xml`，支持拍照落盘流程。
+  - 新增/更新测试：
+    - JVM：`ImportItemPhotosUseCaseTest`、`ItemEditViewModelTest`（自动建项与重试流转）、`PhotoRepositoryImplTest`（封面查询）
+    - 设备：`AndroidPhotoAssetProcessorIntegrationTest`（20 图处理）、`ItemEditScreenInteractionTest`、`ItemListScreenInteractionTest`、`ItemDetailScreenInteractionTest`
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat test`
+    - `.\gradlew.bat connectedAndroidTest`（全量 33 项）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`（ADB 直连）
+    - 已执行设备端全量自动化链路，包含 Step 12 新增 20 图处理集成测试与页面交互测试。
+  - 执行备注：
+    - 首次设备测试出现 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`（历史签名冲突），执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后恢复。
+    - 首轮 Step 12 新增 UI 用例有 3 项小屏可视区断言失败，已调整为滚动/语义兼容断言后全量通过。
+- 阻塞项：无代码阻塞（等待用户 Android Studio 编译与机测复验）
+- 下一步：
+  1. 用户在 Android Studio 编译并机测 Step 12（拍照/单选/多选导入、失败重试、列表封面滚动、详情高清图查看）。
+  2. 用户明确“机测通过”前，不进入 Step 13。
+
+### 2026-03-08 - Step 12 后续修正：ItemEdit/Detail/Category 一致性
+- 状态：`done`
+- 关键更新：
+  - 修复 ItemEdit 草稿稳定性：在编辑页导入照片后，不再清空用户已输入字段（如 `Purchase Date`、`Purchase Price`）。
+  - 修复新建态“先加图”行为：用户尚未输入文本即添加照片时，可自动创建并绑定 `itemId` 供照片落库，但不再把自动生成名称回填到名称输入框。
+  - 修复保存后的导航行为：
+    - 在 ItemEdit 点击 `Save`（新建或编辑）后，自动跳转到该条目的 `Item Detail`。
+    - 在该详情页点击 `Back` 后，返回 `Item List`。
+  - 修复返回页自动刷新行为：
+    - 重新进入 `Item Detail(itemId)` 时自动刷新，编辑保存返回后无需手动 `Refresh` 即可看到最新字段。
+    - 重新进入 `Category` 时自动刷新，`Item count` 无需手动 `Refresh` 即可更新。
+  - 新增回归测试覆盖（`ItemEditFlowIntegrationTest`）：
+    - `editFromDetail_saveShouldAutoRefreshDetail`
+    - `backToCategory_shouldAutoRefreshItemCount`
+- 测试结果：
+  - `.\gradlew.bat test` 通过。
+  - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest` 通过（4/4）。
+  - `.\gradlew.bat connectedAndroidTest` 通过（36/36）。
+  - 设备：`SM-S901U1 - Android 15`。
+- 人工验证：
+  - 用户已确认：上述 Step 12 后续修正在手机实机验证通过。
+- 阻塞项：无。
+- 下一步：
+  1. 在用户明确放行前，继续停留在 Step 12，不进入 Step 13。

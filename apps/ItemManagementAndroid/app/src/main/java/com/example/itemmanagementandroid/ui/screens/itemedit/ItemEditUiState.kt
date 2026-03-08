@@ -17,6 +17,20 @@ data class ItemEditCustomAttributeRowUiModel(
     val value: String = ""
 )
 
+data class ItemEditPhotoUiModel(
+    val id: String,
+    val localUri: String,
+    val thumbnailUri: String?,
+    val contentType: String,
+    val width: Int?,
+    val height: Int?
+)
+
+data class ItemEditPhotoImportFailureUiModel(
+    val sourceUri: String,
+    val reason: String
+)
+
 data class ItemEditFieldErrors(
     val name: String? = null,
     val categoryId: String? = null,
@@ -42,7 +56,12 @@ data class ItemEditUiState(
     val description: String = "",
     val tagsInput: String = "",
     val customAttributesRows: List<ItemEditCustomAttributeRowUiModel> = emptyList(),
+    val photos: List<ItemEditPhotoUiModel> = emptyList(),
+    val isImportingPhotos: Boolean = false,
+    val photoImportFailures: List<ItemEditPhotoImportFailureUiModel> = emptyList(),
+    val photoImportMessage: String? = null,
     val fieldErrors: ItemEditFieldErrors = ItemEditFieldErrors(),
     val errorMessage: String? = null,
-    val saveResultMessage: String? = null
+    val saveResultMessage: String? = null,
+    val navigateToDetailItemId: String? = null
 )

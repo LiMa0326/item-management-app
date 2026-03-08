@@ -71,6 +71,9 @@ fun ItemManagementApp() {
                     }
                 }
                 val categoryViewModel: CategoryViewModel = viewModel(factory = categoryViewModelFactory)
+                LaunchedEffect(Unit) {
+                    categoryViewModel.refresh()
+                }
                 val categoryState by categoryViewModel.uiState.collectAsState()
                 CategoryScreen(
                     state = categoryState,
@@ -93,7 +96,8 @@ fun ItemManagementApp() {
                     singleViewModelFactory {
                         ItemListViewModel(
                             listCategoriesUseCase = dependencies.listCategoriesUseCase,
-                            listItemsUseCase = dependencies.listItemsUseCase
+                            listItemsUseCase = dependencies.listItemsUseCase,
+                            listItemPhotoCoversUseCase = dependencies.listItemPhotoCoversUseCase
                         )
                     }
                 }
@@ -133,6 +137,9 @@ fun ItemManagementApp() {
                     key = "item_detail_${currentRoute.itemId ?: "auto"}",
                     factory = itemDetailViewModelFactory
                 )
+                LaunchedEffect(currentRoute.itemId) {
+                    itemDetailViewModel.refresh()
+                }
                 val itemDetailState by itemDetailViewModel.uiState.collectAsState()
                 ItemDetailScreen(
                     state = itemDetailState,
@@ -152,6 +159,8 @@ fun ItemManagementApp() {
                         ItemEditViewModel(
                             listCategoriesUseCase = dependencies.listCategoriesUseCase,
                             getItemUseCase = dependencies.getItemUseCase,
+                            listItemPhotosUseCase = dependencies.listItemPhotosUseCase,
+                            importItemPhotosUseCase = dependencies.importItemPhotosUseCase,
                             createItemUseCase = dependencies.createItemUseCase,
                             updateItemUseCase = dependencies.updateItemUseCase,
                             initialItemId = currentRoute.itemId
@@ -166,6 +175,11 @@ fun ItemManagementApp() {
                     itemEditViewModel.onRouteEntered(currentRoute.itemId)
                 }
                 val itemEditState by itemEditViewModel.uiState.collectAsState()
+                LaunchedEffect(itemEditState.navigateToDetailItemId) {
+                    val targetItemId = itemEditState.navigateToDetailItemId ?: return@LaunchedEffect
+                    navigationViewModel.navigateToItemDetailAfterEdit(targetItemId)
+                    itemEditViewModel.onNavigateToDetailHandled()
+                }
                 ItemEditScreen(
                     state = itemEditState,
                     canGoBack = navigationState.canGoBack,
@@ -183,6 +197,8 @@ fun ItemManagementApp() {
                     onCustomAttributeValueChanged = itemEditViewModel::setCustomAttributeValue,
                     onAddCustomAttributeRow = itemEditViewModel::addCustomAttributeRow,
                     onRemoveCustomAttributeRow = itemEditViewModel::removeCustomAttributeRow,
+                    onImportPhotoUris = itemEditViewModel::importPhotoUris,
+                    onRetryFailedPhotoImports = itemEditViewModel::retryFailedPhotoImports,
                     onSave = itemEditViewModel::save,
                     onCancel = navigationViewModel::goBack,
                     modifier = Modifier.fillMaxSize()

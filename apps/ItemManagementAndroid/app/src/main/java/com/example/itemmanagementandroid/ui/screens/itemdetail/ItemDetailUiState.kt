@@ -2,6 +2,7 @@ package com.example.itemmanagementandroid.ui.screens.itemdetail
 
 data class ItemDetailPhotoUiModel(
     val id: String,
+    val displayUri: String,
     val contentType: String,
     val localUri: String,
     val thumbnailUri: String?,

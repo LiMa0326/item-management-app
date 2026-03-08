@@ -140,6 +140,7 @@ class ItemDetailViewModel(
             photos = photos.map { photo ->
                 ItemDetailPhotoUiModel(
                     id = photo.id,
+                    displayUri = photo.localUri,
                     contentType = photo.contentType,
                     localUri = photo.localUri,
                     thumbnailUri = photo.thumbnailUri,

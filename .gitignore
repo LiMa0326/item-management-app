@@ -28,6 +28,7 @@ Thumbs.db
 .android/
 .android-home/
 .gradle-user-home/
+.gradle-home/
 apps/ItemManagementAndroid/.gradle/
 apps/ItemManagementAndroid/.gradle-user-home/
 apps/ItemManagementAndroid/.idea/

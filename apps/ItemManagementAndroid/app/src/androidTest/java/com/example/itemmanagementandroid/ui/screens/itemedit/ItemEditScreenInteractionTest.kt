@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -68,11 +69,38 @@ class ItemEditScreenInteractionTest {
         }
     }
 
+    @Test
+    fun retryFailedImportsButton_isVisibleAndTriggersCallback() {
+        var retryTriggered = false
+
+        setContent(
+            initialState = baseState().copy(
+                photoImportFailures = listOf(
+                    ItemEditPhotoImportFailureUiModel(
+                        sourceUri = "content://mock/fail",
+                        reason = "mock failure"
+                    )
+                )
+            ),
+            onRetryFailedPhotoImports = { retryTriggered = true }
+        )
+
+        composeRule
+            .onNodeWithTag(ItemEditScreenTestTags.PHOTO_IMPORT_RETRY_BUTTON)
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(retryTriggered)
+        }
+    }
+
     private fun setContent(
         initialState: ItemEditUiState = baseState(),
         onTagsInputChanged: (String) -> Unit = {},
         onCustomAttributeKeyChanged: (String, String) -> Unit = { _, _ -> },
         onCustomAttributeValueChanged: (String, String) -> Unit = { _, _ -> },
+        onRetryFailedPhotoImports: () -> Unit = {},
         onSave: () -> Unit = {}
     ) {
         composeRule.setContent {
@@ -135,6 +163,8 @@ class ItemEditScreenInteractionTest {
                         customAttributesRows = state.customAttributesRows.filterNot { it.rowId == rowId }
                     )
                 },
+                onImportPhotoUris = {},
+                onRetryFailedPhotoImports = onRetryFailedPhotoImports,
                 onSave = onSave,
                 onCancel = {}
             )

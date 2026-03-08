@@ -4,19 +4,27 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.itemmanagementandroid.domain.model.DuplicateItemNameException
 import com.example.itemmanagementandroid.domain.model.ItemDraft
+import com.example.itemmanagementandroid.domain.model.PhotoImportSummary
 import com.example.itemmanagementandroid.domain.usecase.category.ListCategoriesUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.CreateItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.GetItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.UpdateItemUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.ImportItemPhotosUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotosUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 class ItemEditViewModel(
     private val listCategoriesUseCase: ListCategoriesUseCase,
     private val getItemUseCase: GetItemUseCase,
+    private val listItemPhotosUseCase: ListItemPhotosUseCase,
+    private val importItemPhotosUseCase: ImportItemPhotosUseCase,
     private val createItemUseCase: CreateItemUseCase,
     private val updateItemUseCase: UpdateItemUseCase,
     private val initialItemId: String?
@@ -35,7 +43,7 @@ class ItemEditViewModel(
 
     fun refresh() {
         load(
-            requestedItemId = this.requestedItemId,
+            requestedItemId = requestedItemId,
             saveResultMessage = null
         )
     }
@@ -45,6 +53,16 @@ class ItemEditViewModel(
             requestedItemId = itemId,
             saveResultMessage = null
         )
+    }
+
+    fun onNavigateToDetailHandled() {
+        _uiState.update { state ->
+            if (state.navigateToDetailItemId == null) {
+                state
+            } else {
+                state.copy(navigateToDetailItemId = null)
+            }
+        }
     }
 
     fun setName(value: String) {
@@ -178,9 +196,80 @@ class ItemEditViewModel(
         }
     }
 
+    fun importPhotoUris(sourceUris: List<String>) {
+        val normalizedUris = sourceUris
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
+        if (normalizedUris.isEmpty()) {
+            return
+        }
+        val snapshot = _uiState.value
+        if (snapshot.isLoading || snapshot.isSaving || snapshot.isImportingPhotos) {
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(
+                    isImportingPhotos = true,
+                    photoImportMessage = null
+                )
+            }
+
+            runCatching {
+                val target = ensureItemIdForPhotoImport(snapshot)
+                val importSummary = importItemPhotosUseCase(
+                    itemId = target.itemId,
+                    sourceUris = normalizedUris
+                )
+                val latestPhotos = listItemPhotosUseCase(itemId = target.itemId)
+                    .map(::toPhotoUiModel)
+                Triple(target, importSummary, latestPhotos)
+            }.onSuccess { (target, importSummary, latestPhotos) ->
+                _uiState.update { state ->
+                    state.copy(
+                        mode = ItemEditMode.EDIT,
+                        editingItemId = target.itemId,
+                        categoryId = if (state.categoryId.trim().isEmpty()) {
+                            target.resolvedCategoryId
+                        } else {
+                            state.categoryId
+                        },
+                        photos = latestPhotos,
+                        isImportingPhotos = false,
+                        photoImportFailures = importSummary.failures.map { failure ->
+                            ItemEditPhotoImportFailureUiModel(
+                                sourceUri = failure.sourceUri,
+                                reason = failure.reason
+                            )
+                        },
+                        photoImportMessage = buildPhotoImportMessage(importSummary),
+                        errorMessage = null
+                    )
+                }
+            }.onFailure { throwable ->
+                _uiState.update { state ->
+                    state.copy(
+                        isImportingPhotos = false,
+                        errorMessage = throwable.message ?: "Failed to import photos."
+                    )
+                }
+            }
+        }
+    }
+
+    fun retryFailedPhotoImports() {
+        val failedUris = _uiState.value.photoImportFailures
+            .map(ItemEditPhotoImportFailureUiModel::sourceUri)
+        if (failedUris.isEmpty()) {
+            return
+        }
+        importPhotoUris(failedUris)
+    }
+
     fun save() {
         val stateSnapshot = _uiState.value
-        if (stateSnapshot.isLoading || stateSnapshot.isSaving) {
+        if (stateSnapshot.isLoading || stateSnapshot.isSaving || stateSnapshot.isImportingPhotos) {
             return
         }
 
@@ -234,8 +323,10 @@ class ItemEditViewModel(
                     "Item updated."
                 }
                 buildUiState(
-                    requestedItemId = if (stateSnapshot.editingItemId == null) null else savedItem.id,
+                    requestedItemId = savedItem.id,
                     saveResultMessage = saveResultMessage
+                ).copy(
+                    navigateToDetailItemId = savedItem.id
                 )
             }.onSuccess { state ->
                 _uiState.value = state
@@ -321,6 +412,9 @@ class ItemEditViewModel(
         val selectedItem = requestedItemId?.let { itemId ->
             getItemUseCase(itemId = itemId)
         }
+        val photos = selectedItem?.let { item ->
+            listItemPhotosUseCase(itemId = item.id).map(::toPhotoUiModel)
+        } ?: emptyList()
 
         val switchedToCreateMessage = if (requestedItemId != null && selectedItem == null) {
             "Item not found. Switched to create mode."
@@ -349,9 +443,27 @@ class ItemEditViewModel(
             description = selectedItem?.description.orEmpty(),
             tagsInput = selectedItem?.tags?.joinToString(", ").orEmpty(),
             customAttributesRows = rows,
+            photos = photos,
+            isImportingPhotos = false,
+            photoImportFailures = emptyList(),
+            photoImportMessage = null,
             fieldErrors = ItemEditFieldErrors(),
             errorMessage = switchedToCreateMessage,
-            saveResultMessage = saveResultMessage
+            saveResultMessage = saveResultMessage,
+            navigateToDetailItemId = null
+        )
+    }
+
+    private fun toPhotoUiModel(
+        photo: com.example.itemmanagementandroid.domain.model.ItemPhoto
+    ): ItemEditPhotoUiModel {
+        return ItemEditPhotoUiModel(
+            id = photo.id,
+            localUri = photo.localUri,
+            thumbnailUri = photo.thumbnailUri,
+            contentType = photo.contentType,
+            width = photo.width,
+            height = photo.height
         )
     }
 
@@ -398,6 +510,51 @@ class ItemEditViewModel(
         )
     }
 
+    private suspend fun ensureItemIdForPhotoImport(
+        stateSnapshot: ItemEditUiState
+    ): PhotoImportTarget {
+        stateSnapshot.editingItemId?.let {
+            return PhotoImportTarget(
+                itemId = it,
+                resolvedCategoryId = stateSnapshot.categoryId
+            )
+        }
+
+        val normalizedCategoryId = stateSnapshot.categoryId.trim()
+            .ifEmpty {
+                listCategoriesUseCase(includeArchived = true).firstOrNull()?.id.orEmpty()
+            }
+        require(normalizedCategoryId.isNotEmpty()) {
+            "Category is required before importing photos."
+        }
+
+        val nameForCreation = stateSnapshot.name.trim().ifEmpty { defaultAutoItemName() }
+        val draft = ItemDraft(
+            categoryId = normalizedCategoryId,
+            name = nameForCreation
+        )
+        val createdItem = createItemUseCase(draft = draft)
+        requestedItemId = createdItem.id
+        return PhotoImportTarget(
+            itemId = createdItem.id,
+            resolvedCategoryId = normalizedCategoryId
+        )
+    }
+
+    private fun defaultAutoItemName(): String {
+        return "New Item_${
+            AUTO_NAME_FORMATTER.format(Instant.now())
+        }"
+    }
+
+    private fun buildPhotoImportMessage(summary: PhotoImportSummary): String {
+        return if (summary.failureCount == 0) {
+            "Imported ${summary.successCount} photo(s)."
+        } else {
+            "Imported ${summary.successCount} photo(s), failed ${summary.failureCount}."
+        }
+    }
+
     private fun toCustomAttributeRows(
         customAttributes: Map<String, Any>
     ): List<ItemEditCustomAttributeRowUiModel> {
@@ -422,5 +579,16 @@ class ItemEditViewModel(
             key = key,
             value = value
         )
+    }
+
+    private data class PhotoImportTarget(
+        val itemId: String,
+        val resolvedCategoryId: String
+    )
+
+    private companion object {
+        val AUTO_NAME_FORMATTER: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
+                .withZone(ZoneOffset.UTC)
     }
 }

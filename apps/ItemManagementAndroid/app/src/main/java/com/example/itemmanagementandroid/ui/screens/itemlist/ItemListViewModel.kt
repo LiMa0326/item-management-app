@@ -6,6 +6,7 @@ import com.example.itemmanagementandroid.domain.model.ItemListQuery
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.domain.usecase.category.ListCategoriesUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.ListItemsUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotoCoversUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 
 class ItemListViewModel(
     private val listCategoriesUseCase: ListCategoriesUseCase,
-    private val listItemsUseCase: ListItemsUseCase
+    private val listItemsUseCase: ListItemsUseCase,
+    private val listItemPhotoCoversUseCase: ListItemPhotoCoversUseCase
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ItemListUiState())
     val uiState: StateFlow<ItemListUiState> = _uiState.asStateFlow()
@@ -130,6 +132,11 @@ class ItemListViewModel(
                         sortOption = sortOption
                     )
                 ).isNotEmpty()
+                val coverUriByItemId = listItemPhotoCoversUseCase(
+                    itemIds = items.map { item -> item.id }
+                ).associate { cover ->
+                    cover.itemId to (cover.thumbnailUri ?: cover.localUri).orEmpty()
+                }.filterValues { uri -> uri.isNotBlank() }
 
                 ItemListUiState(
                     isLoading = false,
@@ -139,7 +146,8 @@ class ItemListViewModel(
                     selectedCategoryId = selectedCategoryId,
                     categoryFilters = categories,
                     hasAnyItemsInCurrentMode = hasAnyItemsInCurrentMode,
-                    items = items
+                    items = items,
+                    coverUriByItemId = coverUriByItemId
                 )
             }.onSuccess { state ->
                 _uiState.value = state

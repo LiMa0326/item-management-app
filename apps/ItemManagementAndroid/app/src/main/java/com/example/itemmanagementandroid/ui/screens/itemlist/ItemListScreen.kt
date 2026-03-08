@@ -3,6 +3,7 @@ package com.example.itemmanagementandroid.ui.screens.itemlist
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,10 +18,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.ui.navigation.AppRoute
+import com.example.itemmanagementandroid.ui.components.UriImage
 
 @Composable
 fun ItemListScreen(
@@ -143,24 +146,38 @@ fun ItemListScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(state.items, key = { item -> item.id }) { item ->
-                        Column(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag(ItemListScreenTestTags.itemRow(item.id))
                                 .clickable { onNavigate(AppRoute.ItemDetail(itemId = item.id)) }
                                 .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(text = item.name, style = MaterialTheme.typography.bodyMedium)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Date: ${item.purchaseDate ?: "-"}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = "Price: ${item.purchasePrice?.toString() ?: "-"}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                            UriImage(
+                                uri = state.coverUriByItemId[item.id],
+                                contentDescription = "Item cover image",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(MaterialTheme.shapes.small)
+                                    .testTag(ItemListScreenTestTags.itemCover(item.id)),
+                                placeholderText = "No Cover"
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(text = item.name, style = MaterialTheme.typography.bodyMedium)
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Date: ${item.purchaseDate ?: "-"}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    Text(
+                                        text = "Price: ${item.purchasePrice?.toString() ?: "-"}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         }
                     }
@@ -238,4 +255,5 @@ object ItemListScreenTestTags {
     fun categoryFilterButton(categoryId: String): String = "item_list_filter_$categoryId"
     fun sortOptionButton(option: ItemListSortOption): String = "item_list_sort_${option.name}"
     fun itemRow(itemId: String): String = "item_list_row_$itemId"
+    fun itemCover(itemId: String): String = "item_list_cover_$itemId"
 }

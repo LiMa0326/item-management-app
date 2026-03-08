@@ -1,5 +1,9 @@
 package com.example.itemmanagementandroid.ui.screens.itemedit
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,18 +11,34 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
+import com.example.itemmanagementandroid.ui.components.UriImage
+import java.io.File
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun ItemEditScreen(
@@ -38,11 +58,54 @@ fun ItemEditScreen(
     onCustomAttributeValueChanged: (String, String) -> Unit,
     onAddCustomAttributeRow: () -> Unit,
     onRemoveCustomAttributeRow: (String) -> Unit,
+    onImportPhotoUris: (List<String>) -> Unit,
+    onRetryFailedPhotoImports: () -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val uri = pendingCameraUri
+        pendingCameraUri = null
+        if (success && uri != null) {
+            onImportPhotoUris(listOf(uri.toString()))
+        } else if (uri != null) {
+            runCatching { uri.path?.let(::File)?.delete() }
+        }
+    }
+
+    val pickSingleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            onImportPhotoUris(listOf(uri.toString()))
+        }
+    }
+
+    val pickMultipleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            onImportPhotoUris(uris.map(Uri::toString))
+        }
+    }
+
+    fun launchCameraCapture() {
+        val cameraFile = createCameraTempFile(context.cacheDir)
+        val cameraUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            cameraFile
+        )
+        pendingCameraUri = cameraUri
+        takePictureLauncher.launch(cameraUri)
+    }
 
     Column(
         modifier = modifier
@@ -68,14 +131,128 @@ fun ItemEditScreen(
         if (state.isSaving) {
             Text(text = "Saving item...", style = MaterialTheme.typography.bodySmall)
         }
+        if (state.isImportingPhotos) {
+            Text(
+                modifier = Modifier.testTag(ItemEditScreenTestTags.PHOTO_IMPORT_STATUS_TEXT),
+                text = "Importing photos...",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         state.saveResultMessage?.let { saveResultMessage ->
             Text(
                 text = saveResultMessage,
                 style = MaterialTheme.typography.bodySmall
             )
         }
+        state.photoImportMessage?.let { photoImportMessage ->
+            Text(
+                modifier = Modifier.testTag(ItemEditScreenTestTags.PHOTO_IMPORT_MESSAGE_TEXT),
+                text = photoImportMessage,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         state.errorMessage?.let { errorMessage ->
             Text(text = errorMessage, style = MaterialTheme.typography.bodySmall)
+        }
+
+        Text(text = "Photos", style = MaterialTheme.typography.titleSmall)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(ItemEditScreenTestTags.PHOTO_ACTIONS_ROW),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_CAMERA_BUTTON),
+                enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
+                onClick = ::launchCameraCapture
+            ) {
+                Text(text = "Take Photo")
+            }
+            OutlinedButton(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_PICK_SINGLE_BUTTON),
+                enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
+                onClick = {
+                    pickSingleLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            ) {
+                Text(text = "Pick One")
+            }
+            OutlinedButton(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_PICK_MULTIPLE_BUTTON),
+                enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
+                onClick = {
+                    pickMultipleLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            ) {
+                Text(text = "Pick Multiple")
+            }
+        }
+        if (state.photoImportFailures.isNotEmpty()) {
+            OutlinedButton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_RETRY_BUTTON),
+                enabled = !state.isImportingPhotos && !state.isSaving,
+                onClick = onRetryFailedPhotoImports
+            ) {
+                Text(text = "Retry Failed Imports (${state.photoImportFailures.size})")
+            }
+            state.photoImportFailures.forEach { failure ->
+                Text(
+                    text = "Failed: ${failure.reason}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(ItemEditScreenTestTags.PHOTO_LIST),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (state.photos.isEmpty()) {
+                item {
+                    OutlinedCard(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .testTag(ItemEditScreenTestTags.EMPTY_PHOTO_CARD)
+                    ) {
+                        UriImage(
+                            uri = null,
+                            contentDescription = "No photo yet",
+                            modifier = Modifier.fillMaxSize(),
+                            placeholderText = "No Photos"
+                        )
+                    }
+                }
+            }
+            items(state.photos, key = { photo -> photo.id }) { photo ->
+                OutlinedCard(
+                    modifier = Modifier
+                        .size(96.dp)
+                        .testTag(ItemEditScreenTestTags.photoCard(photo.id))
+                ) {
+                    UriImage(
+                        uri = photo.thumbnailUri ?: photo.localUri,
+                        contentDescription = "Item photo thumbnail",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(MaterialTheme.shapes.small),
+                        placeholderText = "No Preview"
+                    )
+                }
+            }
         }
 
         Text(text = "Category", style = MaterialTheme.typography.titleSmall)
@@ -245,6 +422,7 @@ fun ItemEditScreen(
                 .testTag(ItemEditScreenTestTags.SAVE_BUTTON),
             enabled = !state.isLoading &&
                 !state.isSaving &&
+                !state.isImportingPhotos &&
                 state.name.trim().isNotEmpty() &&
                 state.categoryId.trim().isNotEmpty(),
             onClick = onSave
@@ -255,7 +433,7 @@ fun ItemEditScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(ItemEditScreenTestTags.CANCEL_BUTTON),
-            enabled = !state.isSaving,
+            enabled = !state.isSaving && !state.isImportingPhotos,
             onClick = onCancel
         ) {
             Text(text = "Cancel")
@@ -272,8 +450,29 @@ fun ItemEditScreen(
     }
 }
 
+private fun createCameraTempFile(cacheDir: File): File {
+    val cameraDir = File(cacheDir, CAMERA_CAPTURE_DIRECTORY)
+    if (!cameraDir.exists()) {
+        cameraDir.mkdirs()
+    }
+    require(cameraDir.exists() && cameraDir.isDirectory) {
+        "Failed to create camera capture directory."
+    }
+    val timestamp = CAMERA_FILE_TIME_FORMATTER.format(Instant.now())
+    return File(cameraDir, "capture_$timestamp.jpg")
+}
+
 object ItemEditScreenTestTags {
     const val ROOT = "item_edit_root"
+    const val PHOTO_ACTIONS_ROW = "item_edit_photo_actions_row"
+    const val PHOTO_LIST = "item_edit_photo_list"
+    const val EMPTY_PHOTO_CARD = "item_edit_photo_card_empty"
+    const val PHOTO_IMPORT_CAMERA_BUTTON = "item_edit_photo_import_camera_button"
+    const val PHOTO_IMPORT_PICK_SINGLE_BUTTON = "item_edit_photo_import_pick_single_button"
+    const val PHOTO_IMPORT_PICK_MULTIPLE_BUTTON = "item_edit_photo_import_pick_multiple_button"
+    const val PHOTO_IMPORT_RETRY_BUTTON = "item_edit_photo_import_retry_button"
+    const val PHOTO_IMPORT_STATUS_TEXT = "item_edit_photo_import_status_text"
+    const val PHOTO_IMPORT_MESSAGE_TEXT = "item_edit_photo_import_message_text"
     const val CATEGORY_SECTION = "item_edit_category_section"
     const val NAME_INPUT = "item_edit_name_input"
     const val PURCHASE_DATE_INPUT = "item_edit_purchase_date_input"
@@ -293,4 +492,11 @@ object ItemEditScreenTestTags {
     fun customAttributeKeyInput(rowId: String): String = "item_edit_custom_attribute_key_$rowId"
     fun customAttributeValueInput(rowId: String): String = "item_edit_custom_attribute_value_$rowId"
     fun removeCustomAttributeButton(rowId: String): String = "item_edit_custom_attribute_remove_$rowId"
+    fun photoCard(photoId: String): String = "item_edit_photo_card_$photoId"
 }
+
+private const val CAMERA_CAPTURE_DIRECTORY = "camera-captures"
+
+private val CAMERA_FILE_TIME_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS")
+        .withZone(ZoneOffset.UTC)

@@ -12,6 +12,7 @@ data class ItemListUiState(
     val categoryFilters: List<ItemListCategoryFilterUiModel> = emptyList(),
     val hasAnyItemsInCurrentMode: Boolean = false,
     val items: List<Item> = emptyList(),
+    val coverUriByItemId: Map<String, String> = emptyMap(),
     val errorMessage: String? = null
 ) {
     val shouldShowEmptyState: Boolean
