@@ -10,6 +10,9 @@ import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
 
 @Dao
 interface ItemPhotoDao {
+    @Query("SELECT * FROM item_photos")
+    suspend fun listAll(): List<ItemPhotoEntity>
+
     @Query("SELECT * FROM item_photos WHERE item_id = :itemId ORDER BY created_at ASC")
     suspend fun listByItemOrdered(itemId: String): List<ItemPhotoEntity>
 
@@ -19,8 +22,14 @@ interface ItemPhotoDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(photo: ItemPhotoEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplace(photo: ItemPhotoEntity): Long
+
     @Query("DELETE FROM item_photos WHERE id = :photoId")
     suspend fun deleteById(photoId: String): Int
+
+    @Query("DELETE FROM item_photos")
+    suspend fun deleteAll(): Int
 
     @Query(
         """

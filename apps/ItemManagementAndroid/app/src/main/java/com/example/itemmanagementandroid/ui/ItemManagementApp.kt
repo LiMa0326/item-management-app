@@ -209,7 +209,11 @@ fun ItemManagementApp() {
                 val settingsViewModelFactory = remember(dependencies) {
                     singleViewModelFactory {
                         SettingsViewModel(
-                            exportLocalBackupUseCase = dependencies.exportLocalBackupUseCase
+                            setBackupDirectoryUseCase = dependencies.setBackupDirectoryUseCase,
+                            getBackupDirectoryUseCase = dependencies.getBackupDirectoryUseCase,
+                            listImportableBackupsUseCase = dependencies.listImportableBackupsUseCase,
+                            exportBackupToSharedDirectoryUseCase = dependencies.exportBackupToSharedDirectoryUseCase,
+                            importBackupFromDocumentUseCase = dependencies.importBackupFromDocumentUseCase
                         )
                     }
                 }
@@ -220,7 +224,13 @@ fun ItemManagementApp() {
                     canGoBack = navigationState.canGoBack,
                     onNavigate = navigationViewModel::navigate,
                     onExportModeSelected = settingsViewModel::setExportMode,
-                    onExportBackup = settingsViewModel::exportBackup,
+                    onBackupDirectorySelected = settingsViewModel::onBackupDirectorySelected,
+                    onExportBackupToSharedDirectory = settingsViewModel::exportBackupToSharedDirectory,
+                    onRefreshImportableBackups = settingsViewModel::refreshImportableBackups,
+                    onRequestImport = settingsViewModel::requestImport,
+                    onConfirmImport = settingsViewModel::confirmImport,
+                    onCancelImport = settingsViewModel::cancelImport,
+                    onImportSingleDocument = settingsViewModel::importFromSingleDocument,
                     onBack = navigationViewModel::goBack,
                     modifier = Modifier.fillMaxSize()
                 )

@@ -118,6 +118,11 @@ class CategoryRepositoryImplTest {
             return 1L
         }
 
+        override suspend fun insertOrReplace(category: CategoryEntity): Long {
+            categories[category.id] = category
+            return 1L
+        }
+
         override suspend fun update(category: CategoryEntity): Int {
             require(categories.containsKey(category.id)) {
                 "Category does not exist: ${category.id}"
@@ -139,6 +144,12 @@ class CategoryRepositoryImplTest {
                 updatedAt = updatedAt
             )
             return 1
+        }
+
+        override suspend fun deleteAll(): Int {
+            val count = categories.size
+            categories.clear()
+            return count
         }
     }
 

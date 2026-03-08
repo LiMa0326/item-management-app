@@ -249,6 +249,10 @@ class PhotoRepositoryImplTest {
         private val photos: LinkedHashMap<String, ItemPhotoEntity> = linkedMapOf()
         private val itemDeletedAt: LinkedHashMap<String, String?> = linkedMapOf()
 
+        override suspend fun listAll(): List<ItemPhotoEntity> {
+            return photos.values.toList()
+        }
+
         override suspend fun listByItemOrdered(itemId: String): List<ItemPhotoEntity> {
             return photos.values
                 .filter { it.itemId == itemId }
@@ -268,12 +272,25 @@ class PhotoRepositoryImplTest {
             return 1L
         }
 
+        override suspend fun insertOrReplace(photo: ItemPhotoEntity): Long {
+            photos[photo.id] = photo
+            itemDeletedAt.putIfAbsent(photo.itemId, null)
+            return 1L
+        }
+
         override suspend fun deleteById(photoId: String): Int {
             return if (photos.remove(photoId) != null) {
                 1
             } else {
                 0
             }
+        }
+
+        override suspend fun deleteAll(): Int {
+            val count = photos.size
+            photos.clear()
+            itemDeletedAt.clear()
+            return count
         }
 
         override suspend fun listDeferredCleanupRows(): List<DeferredPhotoCleanupRow> {
