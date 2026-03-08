@@ -1,48 +1,6 @@
 # Home Item Manager
 
-[English](#english) | [中文](#chinese)
-
-<a id="english"></a>
-## English
-
-### 1. App at a Glance
-Home Item Manager is an Android app that helps people keep a clear record of household items.
-It is designed for personal and family use.
-It works offline first, so you can still use core features without internet.
-
-### 2. What You Can Do Now
-- Create and manage categories (including a default Electronics category).
-- Add, edit, and view item details (name, date, price, place, notes, tags).
-- Save photos for items and view photo previews.
-- Search and filter items by keyword, category, and sort options.
-- Soft-delete and restore items when needed.
-- Export backups locally.
-- Import backups with full replace behavior.
-- Choose a shared backup folder, list backup zip files, and import from folder or single file.
-
-### 3. What’s Coming Next
-- Step 15 (not started): final V0 acceptance and release preparation.
-- V1: login + low-cost cloud backup/restore.
-- V2: device sync + optional AI assistance.
-- Future expansion: iOS and Web support.
-
-### 4. Current Development Status
-- Current phase: V0 Step 14A + compact settings UI follow-up completed.
-- Recent result: backup export/import entry flow is available in Settings.
-- Validation status: automated test regression passed (43/43 on connected Android device).
-
-### 5. Last Updated
-Last updated: 2026-03-08
-
-### 6. Learn More
-- Product and roadmap: [memory-bank/design-document.md](memory-bank/design-document.md)
-- Implementation status: [memory-bank/progress.md](memory-bank/progress.md)
-- Architecture details: [memory-bank/architecture.md](memory-bank/architecture.md)
-- Backup format: [memory-bank/BACKUP_FORMAT.md](memory-bank/BACKUP_FORMAT.md)
-- Technical direction: [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
-- Step plan: [memory-bank/implementation-plan.md](memory-bank/implementation-plan.md)
-
----
+[中文](#chinese) | [English](#english)
 
 <a id="chinese"></a>
 ## 中文
@@ -83,3 +41,45 @@ Home Item Manager 是一个 Android 家庭物品管理应用。
 - 备份格式：[memory-bank/BACKUP_FORMAT.md](memory-bank/BACKUP_FORMAT.md)
 - 技术方向：[memory-bank/tech-stack.md](memory-bank/tech-stack.md)
 - 分步计划：[memory-bank/implementation-plan.md](memory-bank/implementation-plan.md)
+
+---
+
+<a id="english"></a>
+## English
+
+### 1. App at a Glance
+Home Item Manager is an Android app that helps people keep a clear record of household items.
+It is designed for personal and family use.
+It works offline first, so you can still use core features without internet.
+
+### 2. What You Can Do Now
+- Create and manage categories (including a default Electronics category).
+- Add, edit, and view item details (name, date, price, place, notes, tags).
+- Save photos for items and view photo previews.
+- Search and filter items by keyword, category, and sort options.
+- Soft-delete and restore items when needed.
+- Export backups locally.
+- Import backups with full replace behavior.
+- Choose a shared backup folder, list backup zip files, and import from folder or single file.
+
+### 3. What’s Coming Next
+- Step 15 (not started): final V0 acceptance and release preparation.
+- V1: login + low-cost cloud backup/restore.
+- V2: device sync + optional AI assistance.
+- Future expansion: iOS and Web support.
+
+### 4. Current Development Status
+- Current phase: V0 Step 14A + compact settings UI follow-up completed.
+- Recent result: backup export/import entry flow is available in Settings.
+- Validation status: automated test regression passed (43/43 on connected Android device).
+
+### 5. Last Updated
+Last updated: 2026-03-08
+
+### 6. Learn More
+- Product and roadmap: [memory-bank/design-document.md](memory-bank/design-document.md)
+- Implementation status: [memory-bank/progress.md](memory-bank/progress.md)
+- Architecture details: [memory-bank/architecture.md](memory-bank/architecture.md)
+- Backup format: [memory-bank/BACKUP_FORMAT.md](memory-bank/BACKUP_FORMAT.md)
+- Technical direction: [memory-bank/tech-stack.md](memory-bank/tech-stack.md)
+- Step plan: [memory-bank/implementation-plan.md](memory-bank/implementation-plan.md)
