@@ -5,9 +5,9 @@
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
 ## 当前总览（截至 2026-03-08）
-- 当前阶段：V0 Step 13 已完成（本地备份导出），等待用户验证放行
+- 当前阶段：V0 Step 14A 后续紧凑化已完成（导出模式下拉 + 单一滚动容器）
 - 总状态：`in_progress`
-- 说明：已完成 Step 13（`metadata_only/thumbnails/full` 三模式本地导出、ZIP 结构与字段对齐 BACKUP_FORMAT、设置页单入口导出与状态展示），并通过 JVM 全量 + 定向设备测试 + 全量设备回归；等待用户在 Android Studio 编译并机测确认后再进入 Step 14。
+- 说明：已完成 Step 14A 与后续 Settings 紧凑化修正，并通过 JVM + 定向设备测试 + 全量设备回归（43/43）；用户已反馈“测试完成”，当前保持不进入 Step 15，等待下一步指令。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -441,3 +441,89 @@
 - 下一步：
   1. 等待用户在 Android Studio 编译并上传手机完成人工验证。
   2. 在用户明确“Step 13 验证通过”前，不进入 Step 14。
+
+### 2026-03-08 - Step 14：本地备份导入（V0 `replace_all`）
+- 状态：`done`
+- 关键产出：
+  - 新增 `backup/importing` 模块，落地导入链路：`BackupArchiveReader`（ZIP 读取与路径校验）+ `BackupJsonParser`（已知字段解析/未知字段忽略）+ `LocalBackupImporter`（事务导入编排）。
+  - 扩展统一契约：`BackupService` 新增 `importLocalBackup(backupFilePath)`；`LocalBackupService` 新增导入代理能力。
+  - 落地 `replace_all` 行为：
+    - 导入前自动执行一次本地 `full` 快照作为回滚点；
+    - 事务内执行“清空核心表 + 按顺序重建 categories/items/item_photos”；
+    - 恢复包内照片到私有目录 `files/photos/full|thumbs`；
+    - 导入完成后清理旧引用照片与目录孤儿文件。
+  - 固化兼容策略：
+    - 未知字段全部忽略，不阻塞导入；
+    - `formatVersion/schemaVersion` 更高版本时执行“尽力导入 + 告警”；
+    - 缺失必需结构或 `itemPhotos.fileName` 引用缺图时按无效包失败并提示。
+  - 数据层补充导入辅助能力：`CategoryDao/ItemDao/ItemPhotoDao` 新增 `insertOrReplace` 与 `deleteAll`（`ItemPhotoDao` 额外新增 `listAll`）。
+  - 新增 `ImportLocalBackupUseCase` 并在 `AppDependencies` 接线（导入前回滚快照复用 `exportLocalBackup(ExportMode.FULL)`）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat testDebugUnitTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.backup.BackupImportIntegrationTest`
+    - `.\gradlew.bat connectedAndroidTest`（全量 41/41）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 新增设备测试 `BackupImportIntegrationTest` 覆盖：
+    - `replace_all` 导入一致性（旧数据被替换、旧照片与孤儿文件清理、回滚快照文件存在）；
+    - 高版本 + 未知字段兼容导入（导入成功并输出版本告警）。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机完成人工验证。
+  2. 在用户明确“Step 14 验证通过”前，不进入 Step 15。
+
+### 2026-03-08 - Step 14A：共享目录备份与导入入口落地
+- 状态：`done`
+- 关键产出：
+  - 新增 `backup/storage` SAF 桥接层：目录 URI 持久化（`backup_tree_uri`）、持久化读写授权、目录 zip 列表（仅顶层、按 `lastModified DESC`）、本地文件与文档文件双向复制。
+  - 新增 Step 14A 用例链路：`Set/GetBackupDirectoryUseCase`、`ListImportableBackupsUseCase`、`ExportBackupToSharedDirectoryUseCase`、`ImportBackupFromDocumentUseCase`。
+  - 升级 Settings 状态机与 UI：
+    - 新增目录状态、目录内可导入列表、导入中状态、导入告警、待确认导入 URI；
+    - 新增 `OpenDocumentTree` 与 `OpenDocument` 接线；
+    - 新增“选择目录 / 导出到共享目录 / 从目录导入（zip 列表）/ 单文件导入兜底”入口；
+    - 导入前统一确认弹窗并明确 `replace_all` 覆盖行为。
+  - 保持备份核心引擎复用：不改 `exportLocalBackup/importLocalBackup` 业务核心，仅做私有临时文件与 SAF 文档桥接。
+  - 更新依赖注入与构建依赖：`AppDependencies` 新增 5 个用例注入出口，Gradle 新增 `androidx.documentfile` 依赖。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+    - `.\gradlew.bat :app:testDebugUnitTest --tests "com.example.itemmanagementandroid.ui.screens.settings.SettingsViewModelTest"`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.settings.SettingsScreenInteractionTest`（3/3）
+    - `.\gradlew.bat connectedAndroidTest`（全量 42/42）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 执行备注：
+    - 首次运行 `testDebugUnitTest` 时因沙箱网络限制拉取依赖失败（`Permission denied: getsockopt`），提权重跑后通过；
+    - `connectedAndroidTest` 在已连接设备完成全量通过，覆盖 Step 14A 新增设置页交互路径。
+- 人工验证：
+  - 待用户在 Android Studio 编译并上传手机执行手工验证清单（卸载重装后重授权目录、历史 zip 列出并导入恢复）。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户人工验证 Step 14A（含卸载重装与共享目录恢复场景）。
+  2. 在用户明确“Step 14A 验证通过”前，不进入 Step 15。
+
+### 2026-03-08 - Step 14A 后续修正：Settings 紧凑化布局
+- 状态：`done`
+- 关键产出：
+  - 将 `Backup Export Mode` 从 3 个按钮改为单个下拉选单，默认值继续由 `selectedExportMode=FULL` 驱动。
+  - 将 Settings 页面从 `Column + 内层 LazyColumn` 重构为单一外层 `LazyColumn`，消除嵌套滚动导致的列表与 `Back` 按钮不可达问题。
+  - 同步调整测试标签契约：新增 `EXPORT_MODE_DROPDOWN`、`exportModeMenuItem(...)`、`SCROLL_CONTAINER`、`BACK_BUTTON`。
+  - 更新 `SettingsScreenInteractionTest`：
+    - 模式选择改为“打开下拉 -> 选择 `THUMBNAILS`”；
+    - 保留导出与目录导入回调断言；
+    - 新增“滚动到 `Back` 按钮可见”断言，验证单一滚动容器可达性。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.settings.SettingsScreenInteractionTest`（4/4）
+    - `.\gradlew.bat connectedAndroidTest`（全量 43/43）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 执行备注：
+    - 定向设备测试首次失败为签名冲突（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`），执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后重跑通过。
+- 人工验证：
+  - 用户已反馈本轮“测试完成”。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户下达下一步开发指令。

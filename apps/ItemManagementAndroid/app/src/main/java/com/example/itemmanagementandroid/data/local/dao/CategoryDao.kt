@@ -27,6 +27,9 @@ interface CategoryDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(category: CategoryEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplace(category: CategoryEntity): Long
+
     @Update
     suspend fun update(category: CategoryEntity): Int
 
@@ -36,4 +39,7 @@ interface CategoryDao {
         sortOrder: Int,
         updatedAt: String
     ): Int
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAll(): Int
 }

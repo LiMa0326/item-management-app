@@ -196,6 +196,16 @@
   - 冻结 Step 13 行为：导出目录优先 `getExternalFilesDir("backups")`（空时回退 `files/backups`）；`thumbnails/full` 任一缺图即失败中止，不降级不跳过。
   - 在 `ui/di` 注入 `ExportLocalBackupUseCase`，将设置页升级为“单入口导出 + 模式选择 + 导出状态/路径展示”。
   - 新增 `LocalBackupServiceTest`（JVM）、`BackupExportIntegrationTest`（设备）、`SettingsScreenInteractionTest`（设备），并通过设备全量回归（`connectedAndroidTest` 39 项，设备 `SM-S901U1 - Android 15`）。
+  - 完成 Step 14：落地 `backup/importing` 模块与 `BackupService.importLocalBackup(backupFilePath)`，实现 V0 `replace_all` 导入闭环。
+  - 在导入链路固化回滚策略：导入前自动执行 `full` 本地快照，失败时抛出 `RollbackSnapshotFailed` 并中止导入。
+  - 在导入链路固化兼容与清理策略：未知字段忽略、`formatVersion/schemaVersion` 更高版本“尽力导入 + 告警”，并清理旧照片文件与 `files/photos` 孤儿文件。
+  - 新增 `BackupImportIntegrationTest`（设备），覆盖 `replace_all` 一致性与“高版本 + 未知字段”兼容；设备全量回归提升为 `connectedAndroidTest` 41 项（设备 `SM-S901U1 - Android 15`）。
+  - 完成 Step 14A：在 Settings 落地共享目录备份与导入入口（`OpenDocumentTree/OpenDocument`），并新增 SAF 桥接层承接“私有临时 zip <-> 共享目录文档”复制。
+  - 固化 Step 14A 目录策略：持久化 `backup_tree_uri` + `takePersistableUriPermission`；仅列出所选目录顶层 `.zip`，按 `lastModified DESC` 排序。
+  - 复用现有备份核心引擎：导出链路 `exportLocalBackup -> copyLocalFileToDocument -> 删除私有临时文件`；导入链路 `copyDocumentToTempFile -> importLocalBackup -> 删除临时文件`。
+  - 完成 Step 14A 测试回归：`SettingsViewModelTest`（JVM）+ `SettingsScreenInteractionTest`（设备）+ `connectedAndroidTest` 全量 42 项（设备 `SM-S901U1 - Android 15`）。
+  - 完成 Step 14A 后续紧凑化修正：`SettingsScreen` 将导出模式从 3 按钮切换为 1 个下拉选单，并将页面重构为单一外层 `LazyColumn`，消除嵌套滚动遮挡。
+  - 更新 Step 14A 设置页测试：`SettingsScreenInteractionTest` 新增“下拉模式选择”与“滚动到 Back 按钮可见”断言；设备全量回归更新为 `connectedAndroidTest` 43 项（设备 `SM-S901U1 - Android 15`）。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -844,3 +854,127 @@
   - 真机三模式导出解包校验；覆盖 `manifest/data/photos` 结构与关键字段。
 - `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
   - 覆盖设置页模式切换、单入口导出点击与状态文案展示。
+
+## 23. Step 14 新增/修改文件职责（2026-03-08）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 23.1 备份导入契约与实现
+- `main/java/com/example/itemmanagementandroid/backup/export/BackupService.kt`
+  - 从“仅导出”扩展为“导入+导出”统一契约：新增 `importLocalBackup(backupFilePath)`。
+- `main/java/com/example/itemmanagementandroid/backup/export/LocalBackupService.kt`
+  - 新增导入代理能力：接收 `BackupImporter` 并转发导入请求；未配置导入器时返回参数错误。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImporter.kt`
+  - 导入器抽象契约，统一 `importLocalBackup(...)` 入口。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportMode.kt`
+  - V0 导入模式枚举，固定 `replace_all`。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportResult.kt`
+  - 导入结果模型（源文件、模式、导入时间、回滚快照路径、导入统计、告警列表）。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportStats.kt`
+  - 导入统计模型（`categories/items/photos`）。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportWarning.kt`
+  - 导入告警模型（兼容告警、记录跳过原因）。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportException.kt`
+  - 导入错误分类（参数错误、包格式错误、快照失败、I/O 错误）。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupImportPayload.kt`
+  - 导入中间模型：manifest/data 映射、archive 载荷、解析结果。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupArchiveReader.kt`
+  - ZIP 读取与解包器：读取 `manifest.json`/`data.json`，提取 `photos/`，并执行路径穿越校验。
+- `main/java/com/example/itemmanagementandroid/backup/importing/BackupJsonParser.kt`
+  - JSON 解析器：忽略未知字段，解析 Category/Item/ItemPhoto，记录“缺字段/非法值跳过”告警。
+- `main/java/com/example/itemmanagementandroid/backup/importing/LocalBackupImporter.kt`
+  - Step 14 导入编排入口：`rollback snapshot -> parse -> replace_all transaction -> photo restore -> orphan cleanup`。
+  - 版本兼容策略：`formatVersion/schemaVersion` 高于 `1.0` 时继续导入并写入告警。
+  - 照片策略：恢复后统一落盘到 `files/photos/full|thumbs`，并清理旧引用文件与目录孤儿文件。
+
+### 23.2 数据层与依赖注入接线
+- `main/java/com/example/itemmanagementandroid/data/local/dao/CategoryDao.kt`
+  - 新增导入辅助接口：`insertOrReplace`、`deleteAll`。
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemDao.kt`
+  - 新增导入辅助接口：`insertOrReplace`、`deleteAll`。
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemPhotoDao.kt`
+  - 新增导入辅助接口：`listAll`、`insertOrReplace`、`deleteAll`。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/ImportLocalBackupUseCase.kt`
+  - 新增导入用例入口，供 UI/测试调用导入能力。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 注入 `LocalBackupImporter`，并通过 `exportOnlyBackupService.exportLocalBackup(ExportMode.FULL)` 提供导入前自动回滚快照。
+  - 新增 `importLocalBackupUseCase` 暴露。
+
+### 23.3 Step 14 测试文件
+- `androidTest/java/com/example/itemmanagementandroid/backup/BackupImportIntegrationTest.kt`
+  - 新增设备导入集成测试：
+    - `replace_all`：导入后本地数据完整替换，旧照片与孤儿文件被清理，回滚快照生成成功；
+    - 兼容性：高版本 `formatVersion/schemaVersion` 与未知字段包可导入并产生告警。
+- `test/java/com/example/itemmanagementandroid/data/repository/CategoryRepositoryImplTest.kt`
+  - 更新 Fake DAO 以适配 `insertOrReplace/deleteAll` 新契约。
+- `test/java/com/example/itemmanagementandroid/data/repository/ItemRepositoryImplTest.kt`
+  - 更新 Fake DAO 以适配 `insertOrReplace/deleteAll` 新契约。
+- `test/java/com/example/itemmanagementandroid/data/repository/PhotoRepositoryImplTest.kt`
+  - 更新 Fake DAO 以适配 `listAll/insertOrReplace/deleteAll` 新契约。
+
+## 24. Step 14A 新增/修改文件职责（2026-03-08）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 24.1 共享目录与 SAF 文档桥接层
+- `main/java/com/example/itemmanagementandroid/backup/storage/BackupDocumentEntry.kt`
+  - 共享目录可导入文件 DTO：`uri/displayName/sizeBytes/lastModified`。
+- `main/java/com/example/itemmanagementandroid/backup/storage/BackupDirectoryInfo.kt`
+  - Settings 目录状态模型：`treeUri/displayName/hasPersistedPermission`。
+- `main/java/com/example/itemmanagementandroid/backup/storage/BackupDirectoryPreferenceStore.kt`
+  - 持久化目录 URI（`SharedPreferences`），固定键 `backup_tree_uri`。
+- `main/java/com/example/itemmanagementandroid/backup/storage/BackupDocumentStorage.kt`
+  - 共享目录访问抽象：目录保存、目录读取、zip 列表、本地->文档复制、文档->临时文件复制。
+- `main/java/com/example/itemmanagementandroid/backup/storage/SharedBackupDocumentStorage.kt`
+  - SAF 具体实现：
+    - `takePersistableUriPermission` 读写授权；
+    - 目录顶层 `.zip` 列表与 `lastModified DESC` 排序；
+    - `copyLocalFileToDocument(...)` 与 `copyDocumentToTempFile(...)` 桥接。
+- `main/java/com/example/itemmanagementandroid/backup/storage/BackupSharedExportResult.kt`
+  - “导出到共享目录”结果模型，承载文档条目与导出统计。
+
+### 24.2 Step 14A 备份用例与 DI 接线
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/SetBackupDirectoryUseCase.kt`
+  - 保存并授权共享目录 URI。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/GetBackupDirectoryUseCase.kt`
+  - 读取已保存目录与权限状态。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/ListImportableBackupsUseCase.kt`
+  - 列出目录内可导入 zip（仅顶层）。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/ExportBackupToSharedDirectoryUseCase.kt`
+  - 编排 `exportLocalBackup -> copyLocalFileToDocument -> 删除本地临时 zip`。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/backup/ImportBackupFromDocumentUseCase.kt`
+  - 编排 `copyDocumentToTempFile -> importLocalBackup -> 删除临时 zip`。
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 注入 `BackupDirectoryPreferenceStore`、`SharedBackupDocumentStorage` 与 Step 14A 新增 5 个用例暴露。
+- `app/build.gradle.kts`
+  - 新增 `androidx.documentfile` 依赖接入。
+- `gradle/libs.versions.toml`
+  - 新增 `documentfile` 版本与 `androidx-documentfile` 库别名。
+
+### 24.3 Settings 状态机与 UI 入口升级
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsUiState.kt`
+  - 新增目录状态、可导入文件列表、导入确认态、导入告警与导入执行态字段。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsViewModel.kt`
+  - 新增事件：
+    - `onBackupDirectorySelected/refreshImportableBackups/exportBackupToSharedDirectory`
+    - `requestImport/confirmImport/cancelImport/importFromSingleDocument`
+  - 导入前统一进入确认弹窗，导入后输出统计与告警。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 新增 `OpenDocumentTree` 与 `OpenDocument` launcher；
+  - 新增“选择备份目录 / 导出到共享目录 / 刷新目录备份 / 单文件导入兜底 / 目录内 zip 列表导入”交互区；
+  - 新增导入确认弹窗（明确 `replace_all` 覆盖本地数据）。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - Settings 分支改为注入 Step 14A 新用例并绑定新增回调。
+
+### 24.4 Step 14A 测试文件
+- `test/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsViewModelTest.kt`
+  - 覆盖未选目录错误、目录授权后列表加载、导入确认流转、导入成功告警展示与失败映射。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
+  - 覆盖新入口可见性、目录列表导入回调、导入确认弹窗确认/取消回调。
+
+### 24.5 Step 14A 后续紧凑化修正（Settings）
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 导出模式控件从“3 按钮组”改为“1 个下拉选单（`selectedExportMode` 驱动）”。
+  - 页面布局从 `Column + 内层 LazyColumn` 改为单一外层 `LazyColumn`，保证导入列表与 `Back` 按钮可滚动可达。
+  - 更新设置页测试标签契约：新增 `SCROLL_CONTAINER`、`EXPORT_MODE_DROPDOWN`、`exportModeMenuItem(...)`、`BACK_BUTTON`。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
+  - 模式选择路径改为“打开下拉 -> 选择 `THUMBNAILS`”。
+  - 新增单一滚动容器可达性回归：滚动到 `BACK_BUTTON` 并断言可见。

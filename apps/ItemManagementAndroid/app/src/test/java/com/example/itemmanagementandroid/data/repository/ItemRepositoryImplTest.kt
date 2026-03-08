@@ -676,12 +676,23 @@ class ItemRepositoryImplTest {
             return 1L
         }
 
+        override suspend fun insertOrReplace(item: ItemEntity): Long {
+            items[item.id] = item
+            return 1L
+        }
+
         override suspend fun update(item: ItemEntity): Int {
             require(items.containsKey(item.id)) {
                 "Item does not exist: ${item.id}"
             }
             items[item.id] = item
             return 1
+        }
+
+        override suspend fun deleteAll(): Int {
+            val count = items.size
+            items.clear()
+            return count
         }
 
         private fun extractKeywordFromLikePattern(likePattern: String): String? {

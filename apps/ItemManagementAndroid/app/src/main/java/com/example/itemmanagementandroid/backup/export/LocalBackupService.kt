@@ -1,5 +1,8 @@
 package com.example.itemmanagementandroid.backup.export
 
+import com.example.itemmanagementandroid.backup.importing.BackupImportException
+import com.example.itemmanagementandroid.backup.importing.BackupImportResult
+import com.example.itemmanagementandroid.backup.importing.BackupImporter
 import java.io.IOException
 import java.time.Clock
 import java.time.Instant
@@ -13,6 +16,7 @@ class LocalBackupService(
     private val photoPreparer: BackupPhotoPreparer = BackupPhotoPreparer(),
     private val zipWriter: BackupZipWriter = BackupZipWriter(),
     private val checksumGenerator: BackupChecksumGenerator = NoOpBackupChecksumGenerator,
+    private val backupImporter: BackupImporter? = null,
     private val clock: Clock = Clock.systemUTC()
 ) : BackupService {
     override suspend fun exportLocalBackup(exportMode: ExportMode): BackupExportResult {
@@ -83,6 +87,14 @@ class LocalBackupService(
                 cause = exception
             )
         }
+    }
+
+    override suspend fun importLocalBackup(backupFilePath: String): BackupImportResult {
+        val importer = backupImporter
+            ?: throw BackupImportException.InvalidParameter(
+                "Backup importer is not configured."
+            )
+        return importer.importLocalBackup(backupFilePath)
     }
 
     private fun nowIsoString(): String = Instant.now(clock).toString()
