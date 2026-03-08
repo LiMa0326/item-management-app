@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-07）
-- 当前阶段：V0 Step 12 已完成（照片处理策略与编辑页入口），等待用户验证放行
+## 当前总览（截至 2026-03-08）
+- 当前阶段：V0 Step 13 已完成（本地备份导出），等待用户验证放行
 - 总状态：`in_progress`
-- 说明：已完成 Step 12（拍照/选图导入、私有目录落盘、原图+缩略图生成、ItemEdit 自动建项、失败重试、列表封面缩略图、详情图展示），并通过 JVM 全量 + 全量设备测试（真机）；等待用户在 Android Studio 编译并机测确认后再进入 Step 13。
+- 说明：已完成 Step 13（`metadata_only/thumbnails/full` 三模式本地导出、ZIP 结构与字段对齐 BACKUP_FORMAT、设置页单入口导出与状态展示），并通过 JVM 全量 + 定向设备测试 + 全量设备回归；等待用户在 Android Studio 编译并机测确认后再进入 Step 14。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -404,3 +404,40 @@
 - 阻塞项：无。
 - 下一步：
   1. 在用户明确放行前，继续停留在 Step 12，不进入 Step 13。
+
+### 2026-03-08 - Step 13：本地备份导出（严格对齐 BACKUP_FORMAT）
+- 状态：`done`
+- 关键产出：
+  - 新增 `backup/export` 模块，落地 `BackupService.exportLocalBackup(exportMode)` 与 `ExportMode`（`metadata_only` / `thumbnails` / `full`）契约。
+  - 新增导出结果与错误分类：`BackupExportResult`、`BackupStats`、`BackupExportException`（参数错误 / I/O 错误 / 缺图错误）。
+  - 新增 checksums 扩展点：`BackupChecksumGenerator` + `NoOpBackupChecksumGenerator`，V0 默认不生成 `checksums.json`，但流程可挂载扩展。
+  - 新增导出实现链路（按职责拆分）：
+    - `BackupSnapshotCollector`：采集全量类别（含归档）、物品（含软删）、照片（按 item 汇总）；
+    - `BackupPhotoPreparer`：`full` 读取 `localUri`、`thumbnails` 读取 `thumbnailUri`，缺图直接失败中止；
+    - `BackupJsonBuilder` + `BackupJsonEncoder`：生成 `manifest.json` / `data.json`，字段对齐 `BACKUP_FORMAT.md`；
+    - `BackupZipWriter`：固定写入顺序 `manifest -> data -> photos -> checksums(optional)`；
+    - `LocalBackupService`：统一编排导出，文件输出为时间戳命名 zip。
+  - 导出目录策略：优先 `getExternalFilesDir("backups")`，为空时回退 `files/backups`。
+  - 应用接线：
+    - 新增 `ExportLocalBackupUseCase` 并注入 `AppDependencies`；
+    - Settings 页面升级为“单入口导出”：模式选择 + 导出按钮 + 状态文案 + 最近导出路径/时间；
+    - `SettingsViewModel` 接入导出状态机与错误映射，UI 不直接访问文件系统。
+  - 新增测试：
+    - JVM：`LocalBackupServiceTest`（三模式结构、必填字段、缺图失败、checksums 扩展点）；
+    - 设备：`BackupExportIntegrationTest`（真机三模式导出解包校验）；
+    - 设备：`SettingsScreenInteractionTest`（模式切换、单按钮导出触发、状态文案）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat testDebugUnitTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.backup.BackupExportIntegrationTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.settings.SettingsScreenInteractionTest`
+    - `.\gradlew.bat connectedAndroidTest`（全量 39/39）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 执行备注：
+    - 定向设备测试首次失败为 `@Before` 返回类型不满足 JUnit4（`setUp() should be void`），改为 block body 后通过；
+    - 全量设备回归首次失败为新测试清库后未恢复默认分类，补充 `BackupExportIntegrationTest` 的 `@After` 基线恢复（`cat_electronics`）后通过。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机完成人工验证。
+  2. 在用户明确“Step 13 验证通过”前，不进入 Step 14。
