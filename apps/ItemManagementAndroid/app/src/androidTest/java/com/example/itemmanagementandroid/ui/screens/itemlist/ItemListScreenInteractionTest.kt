@@ -154,6 +154,24 @@ class ItemListScreenInteractionTest {
         assertEquals("item_1", navigatedToItemDetail?.itemId)
     }
 
+    @Test
+    fun itemRowCover_isDisplayedWhenCoverUriExists() {
+        setItemListContent(
+            state = baseState().copy(
+                coverUriByItemId = mapOf(
+                    "item_1" to "file:///tmp/item_1_thumb.jpg"
+                )
+            )
+        )
+
+        composeRule
+            .onNodeWithTag(ItemListScreenTestTags.itemRow("item_1"))
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemListScreenTestTags.itemCover("item_1"), useUnmergedTree = true)
+            .assertIsDisplayed()
+    }
+
     private fun setItemListContent(
         state: ItemListUiState = baseState(),
         onNavigate: (AppRoute) -> Unit = {},

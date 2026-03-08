@@ -33,4 +33,29 @@ class AppNavigationViewModelTest {
         assertEquals(AppRoute.Home, viewModel.uiState.value.currentRoute)
         assertFalse(viewModel.uiState.value.canGoBack)
     }
+
+    @Test
+    fun navigateToItemDetailAfterEdit_popsToItemListThenPushesDetail() {
+        val viewModel = AppNavigationViewModel()
+
+        viewModel.navigate(AppRoute.Category)
+        viewModel.navigate(AppRoute.ItemList)
+        viewModel.navigate(AppRoute.ItemDetail(itemId = "item_old"))
+        viewModel.navigate(AppRoute.ItemEdit(itemId = "item_old"))
+
+        viewModel.navigateToItemDetailAfterEdit(itemId = "item_new")
+
+        assertEquals(
+            listOf(
+                AppRoute.Home,
+                AppRoute.Category,
+                AppRoute.ItemList,
+                AppRoute.ItemDetail(itemId = "item_new")
+            ),
+            viewModel.uiState.value.backStack
+        )
+
+        viewModel.goBack()
+        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
+    }
 }

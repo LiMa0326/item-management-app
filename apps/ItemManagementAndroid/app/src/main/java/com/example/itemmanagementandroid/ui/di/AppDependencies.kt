@@ -19,7 +19,11 @@ import com.example.itemmanagementandroid.domain.usecase.item.ListItemsUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.RestoreItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.SoftDeleteItemUseCase
 import com.example.itemmanagementandroid.domain.usecase.item.UpdateItemUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.AddItemPhotoUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.ImportItemPhotosUseCase
+import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotoCoversUseCase
 import com.example.itemmanagementandroid.domain.usecase.photo.ListItemPhotosUseCase
+import com.example.itemmanagementandroid.photo.AndroidPhotoAssetProcessor
 
 class AppDependencies(
     context: Context
@@ -36,6 +40,10 @@ class AppDependencies(
 
     private val photoRepository by lazy {
         PhotoRepositoryImpl(database.itemPhotoDao())
+    }
+
+    private val photoAssetProcessor by lazy {
+        AndroidPhotoAssetProcessor(context.applicationContext)
     }
 
     val listCategoriesUseCase: ListCategoriesUseCase by lazy {
@@ -84,6 +92,21 @@ class AppDependencies(
 
     val listItemPhotosUseCase: ListItemPhotosUseCase by lazy {
         ListItemPhotosUseCase(photoRepository)
+    }
+
+    private val addItemPhotoUseCase: AddItemPhotoUseCase by lazy {
+        AddItemPhotoUseCase(photoRepository)
+    }
+
+    val importItemPhotosUseCase: ImportItemPhotosUseCase by lazy {
+        ImportItemPhotosUseCase(
+            photoAssetProcessor = photoAssetProcessor,
+            addItemPhotoUseCase = addItemPhotoUseCase
+        )
+    }
+
+    val listItemPhotoCoversUseCase: ListItemPhotoCoversUseCase by lazy {
+        ListItemPhotoCoversUseCase(photoRepository)
     }
 }
 

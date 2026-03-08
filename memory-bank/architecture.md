@@ -184,6 +184,12 @@
   - 在 `ItemListUiState/ItemListViewModel/ItemListScreen` 接入“输入即搜索”链路，并将 `hasAnyItemsInCurrentMode` 口径更新为“同 includeDeleted + 同类别 + 不带 keyword”。
   - 新增 `ItemSearchQueryIntegrationTest`（设备）与 `ItemRepositoryImplTest` Step 11 用例，覆盖 SQLite 搜索语义、组合过滤、排序一致性与 1k 抽样基线记录。
   - 文档化搜索升级触发规则：当本地数据量 `> 3000` 且响应不可接受时，进入 FTS 升级任务（本步不引入 FTS）。
+  - 完成 Step 12：建立“拍照/选图 -> 私有目录落盘 -> 原图+缩略图 -> DB 落库 -> 列表封面/详情图片展示”的完整照片链路，并在 `ItemEdit` 提供失败重试入口。
+  - 在 `photo` 模块新增 `AndroidPhotoAssetProcessor`、`AppPrivatePhotoStorage` 与 `PhotoProcessingConfig`，固化 EXIF 方向矫正、统一 JPEG 输出（无 EXIF）与缩略图规格（长边 1280、质量 85）。
+  - 在 `domain` 新增 `ImportItemPhotosUseCase`、`ListItemPhotoCoversUseCase` 与导入结果模型（`PhotoImportSummary`、`PhotoImportFailure`），并扩展 `PhotoRepository` 支持批量封面查询。
+  - 在 `ui` 层完成照片能力接线：`ItemEdit` 新增拍照/单选/多选/失败重试与自动建项导图；`ItemList` 行内封面缩略图；`ItemDetail` 照片墙实际图片渲染。
+  - 完成 Android 接入：新增 `FileProvider` 与 `res/xml/file_paths.xml`，支持相机拍照输出到应用私有缓存路径。
+  - 新增 `AndroidPhotoAssetProcessorIntegrationTest`（20 图输入）并通过设备全量测试（`connectedAndroidTest` 33 项，设备 `SM-S901U1 - Android 15`）。
 
 ## 8. Step 01 新增文件职责（2026-03-04）
 > 范围：`apps/ItemManagementAndroid/app/src/`
@@ -665,3 +671,109 @@
 - `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
   - 新增搜索输入交互回调测试（输入/清空）；
   - 调整行点击断言为语义点击以适配小屏可视区域。
+
+## 20. Step 12 新增/修改文件职责（2026-03-07）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 20.1 领域契约与用例
+- `main/java/com/example/itemmanagementandroid/domain/model/ItemPhotoCover.kt`
+  - 物品封面缩略图模型（`itemId` + `thumbnailUri`），用于列表一次性回填封面。
+- `main/java/com/example/itemmanagementandroid/domain/model/PhotoImportFailure.kt`
+  - 照片导入失败项模型，记录失败来源与原因，供 UI 重试。
+- `main/java/com/example/itemmanagementandroid/domain/model/PhotoImportSummary.kt`
+  - 批量导图结果汇总模型（成功数/失败集合/导入项）。
+- `main/java/com/example/itemmanagementandroid/domain/model/ProcessedPhotoAsset.kt`
+  - 图片处理产物模型，承载 full/thumb 文件路径、尺寸与媒体类型。
+- `main/java/com/example/itemmanagementandroid/domain/repository/PhotoAssetProcessor.kt`
+  - 图片处理器抽象，定义 `process(uri)` 与失败清理能力。
+- `main/java/com/example/itemmanagementandroid/domain/repository/PhotoRepository.kt`
+  - 扩展封面查询接口：`listCoversByItemIds(itemIds)`。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/ImportItemPhotosUseCase.kt`
+  - 批量导图编排用例：处理 source uris，成功落库 `item_photos`，失败聚合可重试集合。
+- `main/java/com/example/itemmanagementandroid/domain/usecase/photo/ListItemPhotoCoversUseCase.kt`
+  - 批量封面查询用例，供列表页避免 N+1 查询。
+
+### 20.2 数据层与查询
+- `main/java/com/example/itemmanagementandroid/data/local/dao/model/ItemPhotoCoverRow.kt`
+  - DAO 层封面查询 row 映射模型。
+- `main/java/com/example/itemmanagementandroid/data/local/dao/ItemPhotoDao.kt`
+  - 新增按 itemIds 批量查询首图缩略图 SQL（首图口径：`MIN(created_at)`）。
+- `main/java/com/example/itemmanagementandroid/data/repository/PhotoRepositoryImpl.kt`
+  - 实现 `listCoversByItemIds` 并完成 row 到领域模型映射。
+
+### 20.3 照片处理与存储实现
+- `main/java/com/example/itemmanagementandroid/photo/PhotoProcessingConfig.kt`
+  - 照片处理配置常量（缩略图长边、JPEG 质量等）。
+- `main/java/com/example/itemmanagementandroid/photo/AppPrivatePhotoStorage.kt`
+  - 应用私有目录管理与文件命名落盘（`files/photos/full`、`files/photos/thumbs`）。
+- `main/java/com/example/itemmanagementandroid/photo/AndroidPhotoAssetProcessor.kt`
+  - Android 侧图片处理实现：读取 Uri、EXIF 方向矫正、原图/缩略图 JPEG 重编码并移除 EXIF。
+
+### 20.4 UI 与依赖接线
+- `main/java/com/example/itemmanagementandroid/ui/di/AppDependencies.kt`
+  - 注入 `AndroidPhotoAssetProcessor`、`ImportItemPhotosUseCase`、`ListItemPhotoCoversUseCase`。
+- `main/java/com/example/itemmanagementandroid/ui/components/UriImage.kt`
+  - 新增通用 URI 图片渲染组件，统一 file/content uri 读取与占位图展示。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditUiState.kt`
+  - 扩展照片导入状态：`photos`、`isImportingPhotos`、`photoImportFailures`、`photoImportMessage`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModel.kt`
+  - 新增 `importPhotoUris` 与 `retryFailedPhotoImports`；实现新建态自动建项导图与失败重试状态流转。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreen.kt`
+  - 新增拍照/单选/多选/失败重试入口与缩略图区，并补充测试标签。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListUiState.kt`
+  - 新增 `coverUriByItemId`，承载列表封面路径映射。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListViewModel.kt`
+  - 接入批量封面查询并合并到列表状态。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 行内封面缩略图渲染与封面测试标签。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailUiState.kt`
+  - 照片 UI 模型新增 `displayUri`，承载详情展示路径。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailViewModel.kt`
+  - 详情照片映射更新为实际图片显示字段。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 照片墙由元数据占位升级为实际图片展示。
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 补齐 Step 12 新回调绑定（导图、失败重试、封面查询依赖注入）。
+
+### 20.5 Android 配置
+- `main/AndroidManifest.xml`
+  - 新增 `FileProvider`（`{applicationId}.fileprovider`）用于相机拍照输出。
+- `main/res/xml/file_paths.xml`
+  - 声明 `camera-captures/` 缓存路径共享策略。
+
+### 20.6 测试文件
+- `test/java/com/example/itemmanagementandroid/domain/usecase/photo/ImportItemPhotosUseCaseTest.kt`
+  - 覆盖导入成功与部分失败场景。
+- `test/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditViewModelTest.kt`
+  - 覆盖新建态自动建项导图与失败重试状态流转。
+- `test/java/com/example/itemmanagementandroid/data/repository/PhotoRepositoryImplTest.kt`
+  - 新增封面批量查询回归用例。
+- `androidTest/java/com/example/itemmanagementandroid/photo/AndroidPhotoAssetProcessorIntegrationTest.kt`
+  - 构造 20 图输入，校验处理成功率、缩略图尺寸上限、JPEG 输出与文件可访问性。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditScreenInteractionTest.kt`
+  - 新增失败重试入口可见性与回调验证。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 新增列表封面可见性回归。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreenInteractionTest.kt`
+  - 适配详情实际图片展示链路断言。
+
+## 21. Step 12 后续修正补充（2026-03-08）
+
+### 21.1 后续修正固化的行为约束
+- ItemEdit 保存流程固定为：`Save -> ItemDetail(savedItemId)`。
+- 上述保存流程后的返回路径固定为：`ItemDetail -> ItemList`。
+- 路由进入时自动刷新策略明确为：
+  - 进入 `AppRoute.ItemDetail(itemId)` 必须触发详情刷新；
+  - 进入 `AppRoute.Category` 必须触发分类刷新（包含 item count）。
+- ItemEdit 新建态导图行为固定为：
+  - 导图前后保持用户已输入草稿字段不变；
+  - 若为导图绑定必须先创建 item，不得将自动生成名称回填到可见名称输入框。
+
+### 21.2 文件职责更新
+- `apps/ItemManagementAndroid/app/src/main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 负责 `Category` 与 `ItemDetail` 的路由进入自动刷新触发。
+  - 负责 ItemEdit 保存后到 `navigateToItemDetailAfterEdit(...)` 的导航衔接。
+- `apps/ItemManagementAndroid/app/src/androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFlowIntegrationTest.kt`
+  - 负责以下回归覆盖：
+    - 编辑保存返回详情后的自动刷新；
+    - 从保存链路返回分类页后的 item count 自动刷新。

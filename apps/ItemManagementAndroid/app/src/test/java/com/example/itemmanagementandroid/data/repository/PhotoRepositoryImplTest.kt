@@ -2,6 +2,7 @@ package com.example.itemmanagementandroid.data.repository
 
 import com.example.itemmanagementandroid.data.local.dao.ItemPhotoDao
 import com.example.itemmanagementandroid.data.local.dao.model.DeferredPhotoCleanupRow
+import com.example.itemmanagementandroid.data.local.dao.model.ItemPhotoCoverRow
 import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
 import com.example.itemmanagementandroid.domain.model.DeferredPhotoCleanupCandidate
 import com.example.itemmanagementandroid.domain.model.ItemPhotoDraft
@@ -197,6 +198,53 @@ class PhotoRepositoryImplTest {
         assertTrue(invalidHeight.message!!.contains("height"))
     }
 
+    @Test
+    fun listCoversByItemIds_returnsFirstPhotoPerItem() = runBlocking {
+        repository.add(
+            draft = ItemPhotoDraft(
+                itemId = "item_001",
+                localUri = "file:///photos/001_first.jpg",
+                thumbnailUri = "file:///thumbs/001_first.jpg",
+                contentType = "image/jpeg"
+            )
+        )
+        clock.advanceSeconds(2)
+        repository.add(
+            draft = ItemPhotoDraft(
+                itemId = "item_001",
+                localUri = "file:///photos/001_second.jpg",
+                thumbnailUri = "file:///thumbs/001_second.jpg",
+                contentType = "image/jpeg"
+            )
+        )
+        repository.add(
+            draft = ItemPhotoDraft(
+                itemId = "item_002",
+                localUri = "file:///photos/002_first.jpg",
+                thumbnailUri = "file:///thumbs/002_first.jpg",
+                contentType = "image/jpeg"
+            )
+        )
+
+        val covers = repository.listCoversByItemIds(
+            itemIds = listOf("item_001", "item_002", "item_not_exist")
+        )
+
+        assertEquals(2, covers.size)
+        assertTrue(
+            covers.any { cover ->
+                cover.itemId == "item_001" &&
+                    cover.thumbnailUri == "file:///thumbs/001_first.jpg"
+            }
+        )
+        assertTrue(
+            covers.any { cover ->
+                cover.itemId == "item_002" &&
+                    cover.localUri == "file:///photos/002_first.jpg"
+            }
+        )
+    }
+
     private class FakeItemPhotoDao : ItemPhotoDao {
         private val photos: LinkedHashMap<String, ItemPhotoEntity> = linkedMapOf()
         private val itemDeletedAt: LinkedHashMap<String, String?> = linkedMapOf()
@@ -249,6 +297,24 @@ class PhotoRepositoryImplTest {
                     compareBy<DeferredPhotoCleanupRow> { it.itemDeletedAt }
                         .thenBy { photos.getValue(it.photoId).createdAt }
                 )
+        }
+
+        override suspend fun listCoversByItemIds(itemIds: List<String>): List<ItemPhotoCoverRow> {
+            if (itemIds.isEmpty()) {
+                return emptyList()
+            }
+            return itemIds.mapNotNull { itemId ->
+                photos.values
+                    .filter { photo -> photo.itemId == itemId }
+                    .minByOrNull { photo -> photo.createdAt }
+                    ?.let { firstPhoto ->
+                        ItemPhotoCoverRow(
+                            itemId = itemId,
+                            thumbnailUri = firstPhoto.thumbnailUri,
+                            localUri = firstPhoto.localUri
+                        )
+                    }
+            }
         }
 
         fun markItemDeleted(itemId: String, deletedAt: String) {

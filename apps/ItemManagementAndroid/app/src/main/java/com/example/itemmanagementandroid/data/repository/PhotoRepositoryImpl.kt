@@ -2,9 +2,11 @@ package com.example.itemmanagementandroid.data.repository
 
 import com.example.itemmanagementandroid.data.local.dao.ItemPhotoDao
 import com.example.itemmanagementandroid.data.local.dao.model.DeferredPhotoCleanupRow
+import com.example.itemmanagementandroid.data.local.dao.model.ItemPhotoCoverRow
 import com.example.itemmanagementandroid.data.local.entity.ItemPhotoEntity
 import com.example.itemmanagementandroid.domain.model.DeferredPhotoCleanupCandidate
 import com.example.itemmanagementandroid.domain.model.ItemPhoto
+import com.example.itemmanagementandroid.domain.model.ItemPhotoCover
 import com.example.itemmanagementandroid.domain.model.ItemPhotoDraft
 import com.example.itemmanagementandroid.domain.repository.PhotoRepository
 import java.time.Clock
@@ -60,6 +62,21 @@ class PhotoRepositoryImpl(
         return itemPhotoDao.listDeferredCleanupRows().map(::toDeferredCleanupCandidate)
     }
 
+    override suspend fun listCoversByItemIds(itemIds: List<String>): List<ItemPhotoCover> {
+        val normalizedItemIds = itemIds
+            .map { itemId ->
+                normalizeRequiredField(
+                    value = itemId,
+                    fieldName = "itemId"
+                )
+            }
+            .distinct()
+        if (normalizedItemIds.isEmpty()) {
+            return emptyList()
+        }
+        return itemPhotoDao.listCoversByItemIds(normalizedItemIds).map(::toCoverDomain)
+    }
+
     private fun nowIsoString(): String = Instant.now(clock).toString()
 
     private fun toDomain(entity: ItemPhotoEntity): ItemPhoto {
@@ -85,6 +102,16 @@ class PhotoRepositoryImpl(
             thumbnailUri = row.thumbnailUri,
             contentType = row.contentType,
             itemDeletedAt = row.itemDeletedAt
+        )
+    }
+
+    private fun toCoverDomain(
+        row: ItemPhotoCoverRow
+    ): ItemPhotoCover {
+        return ItemPhotoCover(
+            itemId = row.itemId,
+            thumbnailUri = row.thumbnailUri,
+            localUri = row.localUri
         )
     }
 
