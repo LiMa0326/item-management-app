@@ -11,6 +11,9 @@
 > 3) **Forward-compatible**: unknown fields must be ignored on import.
 > 4) **Versioned**: every backup has a format version and schema version.
 > 5) **Platform-neutral**: avoid Android/iOS-specific URIs in the package.
+>
+> Compatibility note (2026-03-09):
+> - V0 UI Modernization (Step 15-19) only changes navigation and UI structure, and does **not** change this backup format, field definitions, version semantics, or import/export behavior.
 
 ---
 

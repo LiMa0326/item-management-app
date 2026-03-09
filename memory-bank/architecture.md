@@ -115,8 +115,17 @@
 - 搜索语义：大小写不敏感 + 子串匹配；tags 按整词匹配。
 - V0 不强制单独回收站页；可通过“显示已删除”筛选 + 详情页恢复入口闭环。
 - 1k 数据搜索在 V0 仅记录基线，不设硬阈值。
+- V0 发布前 UI 统一规则：`Category` 作为根入口，`Home` 退出主导航主链路。
+- 所有页面统一 TopAppBar + Overflow，且 Overflow 统一包含 `Refresh`。
+- 除 `New Item/Edit Item` 外，移除页面底部 `Back` 按钮，避免重复导航控件。
+- `Category -> ItemList` 支持初始分类筛选参数，并保持“用户手动修改优先”。
+- Settings 固定三段结构（状态+目录 / Backup / Import），仅重构信息架构，不改变备份/导入语义。
 
 ## 7. 架构洞察日志
+- 2026-03-09
+  - 按发布前 UI Modernization 目标更新文档计划：在 `implementation-plan.md` 新增 Step 15-19（UI 重构）并将原验收步骤顺延为 Step 20。
+  - 冻结路由与页面骨架方向：`Category` 根入口、统一 TopAppBar/Overflow、页面显示即 refresh、非编辑页移除底部 Back。
+  - 明确本轮仅更新 memory-bank 文档，不变更数据库结构、备份格式与导入导出语义。
 - 2026-03-03
   - 建立 architecture 文档基线，补齐数据库结构、索引建议、备份导入策略。
   - 根据用户确认冻结关键决策：`purchaseCurrency`、默认导出模式、checksums 分阶段、搜索与排序语义。
