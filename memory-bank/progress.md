@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-08）
-- 当前阶段：V0 Step 14A 后续紧凑化已完成（导出模式下拉 + 单一滚动容器）
+## 当前总览（截至 2026-03-09）
+- 当前阶段：V0 UI Modernization 计划已插入（Step 15-19），原 V0 验收顺延到 Step 20
 - 总状态：`in_progress`
-- 说明：已完成 Step 14A 与后续 Settings 紧凑化修正，并通过 JVM + 定向设备测试 + 全量设备回归（43/43）；用户已反馈“测试完成”，当前保持不进入 Step 15，等待下一步指令。
+- 说明：当前轮次仅完成 memory-bank 文档更新（实施计划、设计、架构、进度、技术栈、备份格式说明）；未执行代码改动与测试，等待按新 Step 15 开始逐步实施。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -527,3 +527,18 @@
 - 阻塞项：无代码阻塞。
 - 下一步：
   1. 等待用户下达下一步开发指令。
+
+### 2026-03-09 - 文档里程碑：V0 UI Modernization 步骤插入
+- 状态：`done`
+- 关键产出：
+  - 更新 `implementation-plan.md`：新增 Step 15-19（UI 重构），原 Step 15 顺延为 Step 20，并新增 UI Modernization 对应 Checkpoint。
+  - 更新 `design-document.md`：补充 V0 发布前 UI Modernization 功能清单、导航结构调整与冻结决策。
+  - 更新 `architecture.md`：补充 V0 UI 冻结行为（根入口、TopBar/Overflow、筛选路由策略）与架构洞察日志。
+  - 更新 `tech-stack.md`：补充统一 Scaffold/TopBar/Overflow 实施约束。
+  - 更新 `BACKUP_FORMAT.md`：新增“本轮仅 UI 重构，无备份格式变更”声明。
+- 测试结果：
+  - 本轮为文档更新，不涉及代码执行与自动化测试。
+- 阻塞项：无
+- 下一步：
+  1. 按新 `implementation-plan.md` 从 Step 15 开始逐步实施 UI Modernization。
+  2. 每完成 Step 15-20 任一步后，同步更新 `progress.md` 与 `architecture.md`。
