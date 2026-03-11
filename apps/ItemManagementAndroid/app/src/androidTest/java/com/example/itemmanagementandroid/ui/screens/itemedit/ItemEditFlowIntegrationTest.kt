@@ -16,8 +16,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.itemmanagementandroid.MainActivity
+import com.example.itemmanagementandroid.ui.components.AppPageScaffoldTestTags
 import com.example.itemmanagementandroid.ui.screens.category.CategoryScreenTestTags
-import com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenTestTags
 import com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -46,8 +46,7 @@ class ItemEditFlowIntegrationTest {
             .performClick()
 
         composeRule
-            .onNodeWithTag(ItemDetailScreenTestTags.BACK_BUTTON)
-            .performScrollTo()
+            .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
             .performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
 
@@ -98,8 +97,7 @@ class ItemEditFlowIntegrationTest {
         composeRule.onNodeWithText("Name: $uniqueName").assertIsDisplayed()
 
         composeRule
-            .onNodeWithTag(ItemDetailScreenTestTags.BACK_BUTTON)
-            .performScrollTo()
+            .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
             .performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
     }
@@ -144,8 +142,6 @@ class ItemEditFlowIntegrationTest {
     fun backToCategory_shouldAutoRefreshItemCount() {
         val uniqueName = "CategoryRefresh_${System.currentTimeMillis()}"
 
-        composeRule.onNodeWithText("Home Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Go To Category").performClick()
         composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
 
         val initialCount = readCategoryItemCount(categoryId = "cat_electronics")
@@ -165,11 +161,10 @@ class ItemEditFlowIntegrationTest {
         composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
 
         composeRule
-            .onNodeWithTag(ItemDetailScreenTestTags.BACK_BUTTON)
-            .performScrollTo()
+            .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
             .performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
-        composeRule.onNodeWithTag(ItemListScreenTestTags.BACK_BUTTON).performClick()
+        composeRule.onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON).performClick()
         composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
 
         val refreshedCount = readCategoryItemCount(categoryId = "cat_electronics")
@@ -177,8 +172,6 @@ class ItemEditFlowIntegrationTest {
     }
 
     private fun navigateToItemList() {
-        composeRule.onNodeWithText("Home Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Go To Category").performClick()
         composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
         composeRule.onNodeWithText("Go To Item List").performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()

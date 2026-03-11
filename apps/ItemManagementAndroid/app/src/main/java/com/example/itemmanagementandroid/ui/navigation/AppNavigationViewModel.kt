@@ -6,11 +6,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class AppNavigationViewModel : ViewModel() {
-    private val backStack = mutableListOf<AppRoute>(AppRoute.Home)
+    private val backStack = mutableListOf<AppRoute>(AppRoute.Category)
     private val _uiState = MutableStateFlow(
         AppNavigationUiState(
             backStack = backStack.toList(),
-            currentRoute = AppRoute.Home,
+            currentRoute = AppRoute.Category,
             canGoBack = false
         )
     )
@@ -57,6 +57,15 @@ class AppNavigationViewModel : ViewModel() {
         if (backStack.lastOrNull() != targetRoute) {
             backStack.add(targetRoute)
         }
+        publishState()
+    }
+
+    fun navigateToCategoryRoot() {
+        if (backStack.size == 1 && backStack.lastOrNull() == AppRoute.Category) {
+            return
+        }
+        backStack.clear()
+        backStack.add(AppRoute.Category)
         publishState()
     }
 

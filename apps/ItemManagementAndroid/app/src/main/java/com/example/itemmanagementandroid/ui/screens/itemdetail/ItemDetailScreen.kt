@@ -26,10 +26,7 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 @Composable
 fun ItemDetailScreen(
     state: ItemDetailUiState,
-    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
     onSoftDelete: () -> Unit,
     onRestore: () -> Unit,
     modifier: Modifier = Modifier
@@ -179,14 +176,6 @@ fun ItemDetailScreen(
         Button(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag(ItemDetailScreenTestTags.REFRESH_BUTTON),
-            onClick = onRefresh
-        ) {
-            Text(text = "Refresh")
-        }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
                 .testTag(ItemDetailScreenTestTags.EDIT_BUTTON),
             onClick = { onNavigate(AppRoute.ItemEdit(itemId = state.selectedItemId)) }
         ) {
@@ -213,15 +202,6 @@ fun ItemDetailScreen(
                 Text(text = "Delete Item")
             }
         }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(ItemDetailScreenTestTags.BACK_BUTTON),
-            enabled = canGoBack,
-            onClick = onBack
-        ) {
-            Text(text = "Back")
-        }
     }
 }
 
@@ -231,11 +211,9 @@ object ItemDetailScreenTestTags {
     const val PHOTO_WALL = "item_detail_photo_wall"
     const val CREATED_AT_TEXT = "item_detail_created_at_text"
     const val UPDATED_AT_TEXT = "item_detail_updated_at_text"
-    const val REFRESH_BUTTON = "item_detail_refresh_button"
     const val EDIT_BUTTON = "item_detail_edit_button"
     const val DELETE_BUTTON = "item_detail_delete_button"
     const val RESTORE_BUTTON = "item_detail_restore_button"
-    const val BACK_BUTTON = "item_detail_back_button"
 
     fun photoCard(photoId: String): String = "item_detail_photo_card_$photoId"
 }
