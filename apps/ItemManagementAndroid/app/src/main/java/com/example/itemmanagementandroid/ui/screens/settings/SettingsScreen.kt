@@ -29,14 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.itemmanagementandroid.backup.export.ExportMode
-import com.example.itemmanagementandroid.ui.navigation.AppRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
-    canGoBack: Boolean,
-    onNavigate: (AppRoute) -> Unit,
     onExportModeSelected: (ExportMode) -> Unit,
     onBackupDirectorySelected: (String?) -> Unit,
     onExportBackupToSharedDirectory: () -> Unit,
@@ -45,7 +42,6 @@ fun SettingsScreen(
     onConfirmImport: () -> Unit,
     onCancelImport: () -> Unit,
     onImportSingleDocument: (String?) -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val openDocumentTreeLauncher = rememberLauncherForActivityResult(
@@ -301,27 +297,6 @@ fun SettingsScreen(
                 )
             }
         }
-        item {
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(SettingsScreenTestTags.HOME_BUTTON),
-                onClick = { onNavigate(AppRoute.Home) }
-            ) {
-                Text(text = "Go To Home")
-            }
-        }
-        item {
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag(SettingsScreenTestTags.BACK_BUTTON),
-                enabled = canGoBack,
-                onClick = onBack
-            ) {
-                Text(text = "Back")
-            }
-        }
     }
 
     if (state.pendingImportBackupUri != null) {
@@ -376,8 +351,6 @@ object SettingsScreenTestTags {
     const val IMPORT_CANCEL_BUTTON = "settings_import_cancel_button"
     const val LAST_EXPORT_PATH_TEXT = "settings_last_export_path_text"
     const val LAST_EXPORT_AT_TEXT = "settings_last_export_at_text"
-    const val HOME_BUTTON = "settings_home_button"
-    const val BACK_BUTTON = "settings_back_button"
 
     fun exportModeMenuItem(exportMode: ExportMode): String {
         return "settings_export_mode_menu_item_${exportMode.name.lowercase()}"

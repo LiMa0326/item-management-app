@@ -3,9 +3,12 @@ package com.example.itemmanagementandroid.ui.screens.itemlist
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
@@ -16,7 +19,6 @@ import com.example.itemmanagementandroid.domain.model.Item
 import com.example.itemmanagementandroid.domain.model.ItemListSortOption
 import com.example.itemmanagementandroid.ui.navigation.AppRoute
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -113,22 +115,24 @@ class ItemListScreenInteractionTest {
     @Test
     fun navigationButtons_triggerCallbacks() {
         var navigatedToItemDetail: AppRoute.ItemDetail? = null
-        var backInvoked = false
 
         setItemListContent(
             onNavigate = { route ->
                 if (route is AppRoute.ItemDetail) {
                     navigatedToItemDetail = route
                 }
-            },
-            onBack = { backInvoked = true }
+            }
         )
 
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON).performClick()
-        composeRule.onNodeWithTag(ItemListScreenTestTags.BACK_BUTTON).performClick()
 
         assertEquals(null, navigatedToItemDetail?.itemId)
-        assertTrue(backInvoked)
+    }
+
+    @Test
+    fun toggleIncludeDeletedButton_notDisplayedInScreenContent() {
+        setItemListContent()
+        composeRule.onAllNodesWithText("Toggle Include Deleted").assertCountEquals(0)
     }
 
     @Test
@@ -175,7 +179,6 @@ class ItemListScreenInteractionTest {
     private fun setItemListContent(
         state: ItemListUiState = baseState(),
         onNavigate: (AppRoute) -> Unit = {},
-        onBack: () -> Unit = {},
         onSearchKeywordChanged: (String) -> Unit = {},
         onCategoryFilterChanged: (String?) -> Unit = {},
         onSortOptionChanged: (ItemListSortOption) -> Unit = {}
@@ -183,11 +186,7 @@ class ItemListScreenInteractionTest {
         composeRule.setContent {
             ItemListScreen(
                 state = state,
-                canGoBack = true,
                 onNavigate = onNavigate,
-                onBack = onBack,
-                onRefresh = {},
-                onToggleIncludeDeleted = {},
                 onSearchKeywordChanged = onSearchKeywordChanged,
                 onCategoryFilterChanged = onCategoryFilterChanged,
                 onSortOptionChanged = onSortOptionChanged,

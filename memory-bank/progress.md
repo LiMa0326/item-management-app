@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-09）
-- 当前阶段：V0 UI Modernization 计划已插入（Step 15-19），原 V0 验收顺延到 Step 20
+## 当前总览（截至 2026-03-10）
+- 当前阶段：Step 15（全局页面骨架与导航统一）已完成，等待用户手工验证后决定是否进入 Step 16
 - 总状态：`in_progress`
-- 说明：当前轮次仅完成 memory-bank 文档更新（实施计划、设计、架构、进度、技术栈、备份格式说明）；未执行代码改动与测试，等待按新 Step 15 开始逐步实施。
+- 说明：已完成 Step 15 代码改动与自动化测试（含真机），当前按用户要求暂停在 Step 15，等待用户手工验证结论。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -542,3 +542,74 @@
 - 下一步：
   1. 按新 `implementation-plan.md` 从 Step 15 开始逐步实施 UI Modernization。
   2. 每完成 Step 15-20 任一步后，同步更新 `progress.md` 与 `architecture.md`。
+
+### 2026-03-10 - Step 15：全局页面骨架与导航统一（V0 UI Modernization）
+- 状态：`done`
+- 关键产出：
+  - 导航根入口从 `Home` 切换为 `Category`：`AppNavigationUiState`/`AppNavigationViewModel` 默认栈同步更新。
+  - `Home` 退出主导航主链路（保留代码文件，不再作为应用主流程页面）。
+  - 新增统一页面壳 `AppPageScaffold`（TopAppBar + Overflow）：
+    - 根页（Category）不显示返回；
+    - 非根页显示返回；
+    - Overflow 固定包含 `Refresh`。
+  - 落地 Overflow 扩展动作：
+    - 非 Settings 页：`Settings`
+    - Settings 页：`Back To Category`（通过新增 `navigateToCategoryRoot()` 实现）。
+  - 非编辑页移除底部 Back：
+    - `CategoryScreen`、`ItemListScreen`、`ItemDetailScreen`、`SettingsScreen`
+  - Settings 页面移除 `Go To Home` 入口。
+  - 固化“页面每次显示即刷新”：
+    - `Category/ItemList/ItemDetail/Settings` 在路由进入时触发 refresh；
+    - `SettingsViewModel` 新增公开 `refresh()` 入口，供页面显示与 Overflow `Refresh` 复用。
+  - 同步更新 Step 15 测试契约与回归用例（导航根入口、TopBar/Overflow、非编辑页返回行为）。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（2/2）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest`（4/4）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.settings.SettingsScreenInteractionTest`（4/4）
+    - `.\gradlew.bat connectedAndroidTest`（全量 44/44）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 执行备注：
+    - 首次并行触发 3 组 `connectedDebugAndroidTest` 时出现 Instrumentation 冲突（进程互斥），改为串行执行后全部通过。
+- 人工验证：
+  - 待用户在 Android Studio 编译并上传手机执行 Step 15 手工验证清单。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户手工验证 Step 15（冷启动根入口、TopBar/Overflow、非编辑页无底部 Back、页面显示自动刷新）。
+  2. 在用户明确“Step 15 验证通过”前，不进入 Step 16。
+
+### 2026-03-10 - Step 15 后续微调：Category/ItemList Toggle 迁移到 Overflow
+- 状态：`done`
+- 关键产出：
+  - `Category` 页将 `Toggle Include Archived` 从正文迁移到 Overflow，正文按钮移除。
+  - `ItemList` 页将 `Toggle Include Deleted` 从正文迁移到 Overflow，正文按钮移除。
+  - `ItemManagementApp` 在对应路由注入两个新 Overflow 动作：
+    - `toggle_include_archived`
+    - `toggle_include_deleted`
+  - 两页 Overflow 动作顺序固定为：`Refresh` -> `Toggle...` -> `Settings`。
+  - `CategoryScreen` / `ItemListScreen` 清理无用参数：
+    - 移除 `onToggleIncludeArchived`
+    - 移除 `onToggleIncludeDeleted`
+  - 同步更新测试契约：
+    - 删除页面内旧 toggle 按钮断言入口；
+    - 新增基于 `AppPageScaffoldTestTags.overflowAction(...)` 的 toggle 交互回归；
+    - 导航集成用例中将进入编辑页断言改为 testTag 驱动，消除文本可见性抖动导致的偶发失败。
+- 测试结果：
+  - 自动化（Agent）通过：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（3/3）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.category.CategoryScreenInteractionTest`（6/6）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenInteractionTest`（10/10）
+    - `.\gradlew.bat connectedAndroidTest`（全量 46/46）
+  - 真机设备：
+    - `SM-S901U1 - Android 15`
+  - 执行备注：
+    - 首次单次运行 `ItemListScreenInteractionTest` 受沙箱 Android 用户目录权限影响失败，提权重跑后通过；随后在默认环境复跑同命令再次通过。
+- 人工验证：
+  - 待用户在 Android Studio 编译并上传手机完成本轮微调手工验收。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户手工验证本轮 Step 15 后续微调（Overflow toggle、正文按钮移除、Refresh/Settings 保持可用）。
+  2. 在用户明确“验证通过”前，不进入 Step 16。

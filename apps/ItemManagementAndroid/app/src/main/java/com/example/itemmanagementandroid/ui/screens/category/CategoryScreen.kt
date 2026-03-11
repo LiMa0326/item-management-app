@@ -28,11 +28,7 @@ import com.example.itemmanagementandroid.ui.navigation.AppRoute
 @Composable
 fun CategoryScreen(
     state: CategoryUiState,
-    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onToggleIncludeArchived: (Boolean) -> Unit,
     onCreateCategory: (String) -> Unit,
     onRenameCategory: (String, String) -> Unit,
     onSetArchived: (String, Boolean) -> Unit,
@@ -80,23 +76,6 @@ fun CategoryScreen(
         ) {
             Text(text = "Create Category")
         }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(CategoryScreenTestTags.REFRESH_BUTTON),
-            onClick = onRefresh
-        ) {
-            Text(text = "Refresh")
-        }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(CategoryScreenTestTags.TOGGLE_INCLUDE_ARCHIVED_BUTTON),
-            onClick = { onToggleIncludeArchived(!state.includeArchived) }
-        ) {
-            Text(text = "Toggle Include Archived")
-        }
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -133,13 +112,6 @@ fun CategoryScreen(
             onClick = { onNavigate(AppRoute.ItemList) }
         ) {
             Text(text = "Go To Item List")
-        }
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            enabled = canGoBack,
-            onClick = onBack
-        ) {
-            Text(text = "Back")
         }
     }
 
@@ -303,8 +275,6 @@ object CategoryScreenTestTags {
     const val CREATE_CATEGORY_CONFIRM_BUTTON = "create_category_confirm_button"
     const val RENAME_CATEGORY_INPUT = "rename_category_input"
     const val RENAME_CATEGORY_CONFIRM_BUTTON = "rename_category_confirm_button"
-    const val TOGGLE_INCLUDE_ARCHIVED_BUTTON = "toggle_include_archived_button"
-    const val REFRESH_BUTTON = "category_refresh_button"
 
     fun categoryRow(categoryId: String): String = "category_row_$categoryId"
     fun renameButton(categoryId: String): String = "rename_button_$categoryId"

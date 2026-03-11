@@ -2,8 +2,11 @@ package com.example.itemmanagementandroid.ui.screens.category
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
@@ -98,16 +101,9 @@ class CategoryScreenInteractionTest {
     }
 
     @Test
-    fun toggleIncludeArchived_triggersCallback() {
-        var includeArchived: Boolean? = null
-
-        setCategoryScreenContent(
-            onToggleIncludeArchived = { includeArchived = it }
-        )
-
-        composeRule.onNodeWithTag(CategoryScreenTestTags.TOGGLE_INCLUDE_ARCHIVED_BUTTON).performClick()
-
-        assertEquals(true, includeArchived)
+    fun toggleIncludeArchivedButton_notDisplayedInScreenContent() {
+        setCategoryScreenContent()
+        composeRule.onAllNodesWithText("Toggle Include Archived").assertCountEquals(0)
     }
 
     private fun setCategoryScreenContent(
@@ -115,8 +111,7 @@ class CategoryScreenInteractionTest {
         onRenameCategory: (String, String) -> Unit = { _, _ -> },
         onSetArchived: (String, Boolean) -> Unit = { _, _ -> },
         onMoveCategoryUp: (String) -> Unit = {},
-        onMoveCategoryDown: (String) -> Unit = {},
-        onToggleIncludeArchived: (Boolean) -> Unit = {}
+        onMoveCategoryDown: (String) -> Unit = {}
     ) {
         composeRule.setContent {
             CategoryScreen(
@@ -140,11 +135,7 @@ class CategoryScreenInteractionTest {
                         )
                     )
                 ),
-                canGoBack = true,
                 onNavigate = { _: AppRoute -> },
-                onBack = {},
-                onRefresh = {},
-                onToggleIncludeArchived = onToggleIncludeArchived,
                 onCreateCategory = onCreateCategory,
                 onRenameCategory = onRenameCategory,
                 onSetArchived = onSetArchived,

@@ -10,14 +10,14 @@ class AppNavigationViewModelTest {
     fun navigationBackStack_behavesAsExpected() {
         val viewModel = AppNavigationViewModel()
 
-        assertEquals(AppRoute.Home, viewModel.uiState.value.currentRoute)
+        assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
         assertFalse(viewModel.uiState.value.canGoBack)
 
-        viewModel.navigate(AppRoute.Category)
-        assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
+        viewModel.navigate(AppRoute.ItemList)
+        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
         assertTrue(viewModel.uiState.value.canGoBack)
 
-        viewModel.navigate(AppRoute.Category)
+        viewModel.navigate(AppRoute.ItemList)
         assertEquals(2, viewModel.uiState.value.backStack.size)
 
         viewModel.navigate(AppRoute.ItemDetail())
@@ -26,11 +26,11 @@ class AppNavigationViewModelTest {
         assertEquals(3, viewModel.uiState.value.backStack.size)
 
         viewModel.goBack()
-        assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
+        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
         assertTrue(viewModel.uiState.value.canGoBack)
 
         viewModel.goBack()
-        assertEquals(AppRoute.Home, viewModel.uiState.value.currentRoute)
+        assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
         assertFalse(viewModel.uiState.value.canGoBack)
     }
 
@@ -47,7 +47,6 @@ class AppNavigationViewModelTest {
 
         assertEquals(
             listOf(
-                AppRoute.Home,
                 AppRoute.Category,
                 AppRoute.ItemList,
                 AppRoute.ItemDetail(itemId = "item_new")
@@ -57,5 +56,19 @@ class AppNavigationViewModelTest {
 
         viewModel.goBack()
         assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
+    }
+
+    @Test
+    fun navigateToCategoryRoot_resetsBackStackToCategoryOnly() {
+        val viewModel = AppNavigationViewModel()
+
+        viewModel.navigate(AppRoute.ItemList)
+        viewModel.navigate(AppRoute.ItemDetail(itemId = "item_1"))
+
+        viewModel.navigateToCategoryRoot()
+
+        assertEquals(listOf(AppRoute.Category), viewModel.uiState.value.backStack)
+        assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
+        assertFalse(viewModel.uiState.value.canGoBack)
     }
 }

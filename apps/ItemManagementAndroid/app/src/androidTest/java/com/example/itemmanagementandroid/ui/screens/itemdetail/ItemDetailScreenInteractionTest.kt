@@ -18,10 +18,7 @@ class ItemDetailScreenInteractionTest {
         composeRule.setContent {
             ItemDetailScreen(
                 state = baseState(),
-                canGoBack = true,
                 onNavigate = {},
-                onBack = {},
-                onRefresh = {},
                 onSoftDelete = {},
                 onRestore = {}
             )
@@ -43,10 +40,7 @@ class ItemDetailScreenInteractionTest {
         composeRule.setContent {
             ItemDetailScreen(
                 state = baseState().copy(deletedAt = null),
-                canGoBack = true,
                 onNavigate = {},
-                onBack = {},
-                onRefresh = {},
                 onSoftDelete = { deleteTriggered = true },
                 onRestore = {}
             )
@@ -68,10 +62,7 @@ class ItemDetailScreenInteractionTest {
         composeRule.setContent {
             ItemDetailScreen(
                 state = baseState().copy(deletedAt = "2026-03-07T10:00:00Z"),
-                canGoBack = true,
                 onNavigate = {},
-                onBack = {},
-                onRefresh = {},
                 onSoftDelete = {},
                 onRestore = { restoreTriggered = true }
             )

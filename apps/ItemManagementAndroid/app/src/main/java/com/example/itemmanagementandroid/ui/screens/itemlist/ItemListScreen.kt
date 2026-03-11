@@ -28,11 +28,7 @@ import com.example.itemmanagementandroid.ui.components.UriImage
 @Composable
 fun ItemListScreen(
     state: ItemListUiState,
-    canGoBack: Boolean,
     onNavigate: (AppRoute) -> Unit,
-    onBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onToggleIncludeDeleted: (Boolean) -> Unit,
     onSearchKeywordChanged: (String) -> Unit,
     onCategoryFilterChanged: (String?) -> Unit,
     onSortOptionChanged: (ItemListSortOption) -> Unit,
@@ -188,22 +184,6 @@ fun ItemListScreen(
         Button(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag(ItemListScreenTestTags.REFRESH_BUTTON),
-            onClick = onRefresh
-        ) {
-            Text(text = "Refresh")
-        }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(ItemListScreenTestTags.TOGGLE_INCLUDE_DELETED_BUTTON),
-            onClick = { onToggleIncludeDeleted(!state.includeDeleted) }
-        ) {
-            Text(text = "Toggle Include Deleted")
-        }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
                 .testTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON),
             onClick = { onNavigate(AppRoute.ItemDetail()) }
         ) {
@@ -216,15 +196,6 @@ fun ItemListScreen(
             onClick = { onNavigate(AppRoute.ItemEdit()) }
         ) {
             Text(text = "New Item")
-        }
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(ItemListScreenTestTags.BACK_BUTTON),
-            enabled = canGoBack,
-            onClick = onBack
-        ) {
-            Text(text = "Back")
         }
     }
 }
@@ -246,11 +217,8 @@ object ItemListScreenTestTags {
     const val ITEM_LIST = "item_list_items"
     const val EMPTY_STATE_TEXT = "item_list_empty_state_text"
     const val NO_RESULTS_TEXT = "item_list_no_results_text"
-    const val REFRESH_BUTTON = "item_list_refresh_button"
-    const val TOGGLE_INCLUDE_DELETED_BUTTON = "item_list_toggle_include_deleted_button"
     const val GO_TO_ITEM_DETAIL_BUTTON = "item_list_go_to_item_detail_button"
     const val GO_TO_ITEM_EDIT_BUTTON = "item_list_go_to_item_edit_button"
-    const val BACK_BUTTON = "item_list_back_button"
 
     fun categoryFilterButton(categoryId: String): String = "item_list_filter_$categoryId"
     fun sortOptionButton(option: ItemListSortOption): String = "item_list_sort_${option.name}"

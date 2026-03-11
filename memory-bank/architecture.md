@@ -122,6 +122,13 @@
 - Settings 固定三段结构（状态+目录 / Backup / Import），仅重构信息架构，不改变备份/导入语义。
 
 ## 7. 架构洞察日志
+- 2026-03-10
+  - 完成 Step 15：将导航根入口从 `Home` 切换为 `Category`，并在 `AppNavigationViewModel/AppNavigationUiState` 冻结默认根栈。
+  - 新增可复用页面壳 `AppPageScaffold`，统一 TopAppBar + Overflow（固定 `Refresh`）与根/非根页返回行为。
+  - 固化“非编辑页移除底部 Back”并保持编辑页底部 `Back/Cancel` 例外；`Settings` 页面移除 `Go To Home` 入口。
+  - 新增 `navigateToCategoryRoot()` 导航语义，用于 `Settings` 页 Overflow 的 `Back To Category` 动作，避免把根页作为普通 push 页面。
+  - 固化页面显示即刷新：`Category/ItemList/ItemDetail/Settings` 在路由进入时通过 `LaunchedEffect(currentRoute)` 触发 refresh，`SettingsViewModel` 新增显式 `refresh()` 入口复用同一路径。
+  - 本轮仅修改 UI/导航骨架与测试契约，不改变数据库结构、备份格式、导入导出语义与数据层业务规则。
 - 2026-03-09
   - 按发布前 UI Modernization 目标更新文档计划：在 `implementation-plan.md` 新增 Step 15-19（UI 重构）并将原验收步骤顺延为 Step 20。
   - 冻结路由与页面骨架方向：`Category` 根入口、统一 TopAppBar/Overflow、页面显示即 refresh、非编辑页移除底部 Back。
@@ -987,3 +994,83 @@
 - `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
   - 模式选择路径改为“打开下拉 -> 选择 `THUMBNAILS`”。
   - 新增单一滚动容器可达性回归：滚动到 `BACK_BUTTON` 并断言可见。
+
+## 25. Step 15 新增/修改文件职责（2026-03-10）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 25.1 导航与统一页面骨架
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationUiState.kt`
+  - 默认导航栈改为 `Category` 根入口，`currentRoute` 默认值同步切换到 `AppRoute.Category`。
+- `main/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModel.kt`
+  - 默认 `backStack` 根路由改为 `Category`。
+  - 新增 `navigateToCategoryRoot()`：用于在任意页面一键回到根入口并清理中间栈。
+- `main/java/com/example/itemmanagementandroid/ui/components/AppPageScaffold.kt`
+  - 新增可复用页面壳：统一 TopAppBar、根/非根返回行为、Overflow 菜单、固定 `Refresh` 动作与扩展动作。
+  - 固化页面骨架测试标签：`TOP_BAR/BACK_BUTTON/OVERFLOW_BUTTON/OVERFLOW_REFRESH_ACTION/overflowAction(...)`。
+
+### 25.2 应用接线与页面行为
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - `Home` 退出主链路（仅兜底重定向到 `Category`），主流程改为以 `Category` 开始。
+  - 全页面统一接入 `AppPageScaffold`，并按路由差异化注入 Overflow 动作：
+    - 非 `Settings` 页：`Settings`
+    - `Settings` 页：`Back To Category`
+  - 固化页面显示即刷新：`Category/ItemList/ItemDetail/Settings` 在 `LaunchedEffect(currentRoute)` 触发 refresh。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsViewModel.kt`
+  - 新增公开 `refresh()`，将 init 刷新路径与页面显示/Overflow `Refresh` 统一。
+
+### 25.3 非编辑页底部 Back 清理
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreen.kt`
+  - 移除页面内 `Refresh` 与底部 `Back`，保留业务区操作（创建/归档开关/列表/跳转 ItemList）。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 移除页面内 `Refresh` 与底部 `Back`，保留业务区过滤/排序/列表/跳转动作。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 移除页面内 `Refresh` 与底部 `Back`，保留详情业务操作（编辑/删除/恢复）。
+- `main/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreen.kt`
+  - 移除页面内 `Go To Home` 与底部 `Back`，设置页导航统一由 TopBar/Overflow 承担。
+
+### 25.4 Step 15 测试文件
+- `test/java/com/example/itemmanagementandroid/ui/navigation/AppNavigationViewModelTest.kt`
+  - 默认根路由断言改为 `Category`；新增 `navigateToCategoryRoot()` 回归用例。
+- `androidTest/java/com/example/itemmanagementandroid/StartupSmokeTest.kt`
+  - 启动断言改为 `Category` 首屏，并验证统一 TopBar/Overflow 可见。
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 主链路改为 `Category -> ItemList -> ItemDetail -> ItemEdit`。
+  - 新增 Overflow 回归：验证 `Refresh`、`Settings`、`Back To Category` 动作可达。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFlowIntegrationTest.kt`
+  - 非编辑页返回行为切换为 TopBar 返回按钮测试标签。
+  - 流程起点改为 `Category` 根页，移除对 Home 主链路依赖。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 适配 ItemList 移除 `onBack/onRefresh` 参数与底部 Back 契约。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreenInteractionTest.kt`
+  - 适配 ItemDetail 移除 `canGoBack/onBack/onRefresh` 参数。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreenInteractionTest.kt`
+  - 适配 Category 移除 `canGoBack/onBack/onRefresh` 参数。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/settings/SettingsScreenInteractionTest.kt`
+  - 适配 Settings 移除 `canGoBack/onNavigate/onBack` 契约。
+  - 滚动可达性回归目标改为“目录末尾导入按钮可见”。
+
+### 25.5 Step 15 后续微调：Category/ItemList Toggle 迁移到 Overflow（2026-03-10）
+- `main/java/com/example/itemmanagementandroid/ui/ItemManagementApp.kt`
+  - 在 `AppRoute.Category` 分支新增 Overflow 动作 `toggle_include_archived`，动作触发 `setIncludeArchived(!includeArchived)`。
+  - 在 `AppRoute.ItemList` 分支新增 Overflow 动作 `toggle_include_deleted`，动作触发 `setIncludeDeleted(!includeDeleted)`。
+  - 两个页面 Overflow 动作顺序统一为：`Refresh`（固定）-> `Toggle...` -> `Settings`。
+- `main/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreen.kt`
+  - 移除正文按钮 `Toggle Include Archived`，避免页面正文与 Overflow 双入口重复。
+  - 删除 `onToggleIncludeArchived` 参数与对应测试标签常量，页面职责收敛为内容渲染与业务回调。
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreen.kt`
+  - 移除正文按钮 `Toggle Include Deleted`。
+  - 删除 `onToggleIncludeDeleted` 参数与对应测试标签常量，保持 ItemList 过滤/排序/列表主职责。
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 新增 Overflow toggle 回归：校验
+    - `overflowAction("toggle_include_archived")`
+    - `overflowAction("toggle_include_deleted")`
+  - 校验点击后状态文案即时变化（`Include archived/deleted`）。
+  - 将 `navigateMainFlowAndBack` 中进入编辑页断言改为基于 `ItemDetailScreenTestTags.EDIT_BUTTON` 与 `ItemEditScreenTestTags.ROOT`，降低文本可见性抖动导致的误报。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/category/CategoryScreenInteractionTest.kt`
+  - 新增正文不再显示 `Toggle Include Archived` 文案断言。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemlist/ItemListScreenInteractionTest.kt`
+  - 新增正文不再显示 `Toggle Include Deleted` 文案断言。
+
+### 25.6 架构洞察日志（Step 15 后续）
+- 将“全局展示级开关”（include archived/deleted）统一迁移到 `AppPageScaffold` Overflow 后，页面正文组件可减少跨层导航壳耦合参数，Composable 签名更稳定。
+- 该迁移不触及 Repository/UseCase/ViewModel 数据语义，仅调整交互入口；因此属于 UI 契约层变更，可通过现有状态流测试与导航回归覆盖风险。

@@ -14,7 +14,6 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.itemmanagementandroid.backup.export.ExportMode
 import com.example.itemmanagementandroid.backup.storage.BackupDocumentEntry
-import com.example.itemmanagementandroid.ui.navigation.AppRoute
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -49,8 +48,6 @@ class SettingsScreenInteractionTest {
                     exportMessage = "Backup exported (full).",
                     lastExportPath = "/tmp/backup_full.zip"
                 ),
-                canGoBack = true,
-                onNavigate = {},
                 onExportModeSelected = { newMode ->
                     mode = newMode
                     selectedMode = newMode
@@ -64,8 +61,7 @@ class SettingsScreenInteractionTest {
                 onRequestImport = { uri -> importRequestUri = uri },
                 onConfirmImport = {},
                 onCancelImport = {},
-                onImportSingleDocument = {},
-                onBack = {}
+                onImportSingleDocument = {}
             )
         }
 
@@ -98,8 +94,6 @@ class SettingsScreenInteractionTest {
                     selectedExportMode = ExportMode.FULL,
                     isExportingBackup = true
                 ),
-                canGoBack = true,
-                onNavigate = { _: AppRoute -> },
                 onExportModeSelected = {},
                 onBackupDirectorySelected = {},
                 onExportBackupToSharedDirectory = {},
@@ -107,8 +101,7 @@ class SettingsScreenInteractionTest {
                 onRequestImport = {},
                 onConfirmImport = {},
                 onCancelImport = {},
-                onImportSingleDocument = {},
-                onBack = {}
+                onImportSingleDocument = {}
             )
         }
 
@@ -127,8 +120,6 @@ class SettingsScreenInteractionTest {
                     pendingImportBackupUri = "content://backup/tree/backup_a.zip",
                     pendingImportBackupName = "backup_a.zip"
                 ),
-                canGoBack = true,
-                onNavigate = { _: AppRoute -> },
                 onExportModeSelected = {},
                 onBackupDirectorySelected = {},
                 onExportBackupToSharedDirectory = {},
@@ -136,8 +127,7 @@ class SettingsScreenInteractionTest {
                 onRequestImport = {},
                 onConfirmImport = { confirmClicks += 1 },
                 onCancelImport = { cancelClicks += 1 },
-                onImportSingleDocument = {},
-                onBack = {}
+                onImportSingleDocument = {}
             )
         }
 
@@ -149,7 +139,13 @@ class SettingsScreenInteractionTest {
     }
 
     @Test
-    fun singleScrollContainer_shouldAllowScrollingToBackButton() {
+    fun singleScrollContainer_shouldAllowScrollingToLastImportButton() {
+        val lastBackup = BackupDocumentEntry(
+            uri = "content://backup/tree/backup_15.zip",
+            displayName = "backup_15.zip",
+            sizeBytes = 1024,
+            lastModified = 15
+        )
         composeRule.setContent {
             SettingsScreen(
                 state = SettingsUiState(
@@ -165,8 +161,6 @@ class SettingsScreenInteractionTest {
                         )
                     }
                 ),
-                canGoBack = true,
-                onNavigate = {},
                 onExportModeSelected = {},
                 onBackupDirectorySelected = {},
                 onExportBackupToSharedDirectory = {},
@@ -174,15 +168,16 @@ class SettingsScreenInteractionTest {
                 onRequestImport = {},
                 onConfirmImport = {},
                 onCancelImport = {},
-                onImportSingleDocument = {},
-                onBack = {}
+                onImportSingleDocument = {}
             )
         }
 
         composeRule
             .onNodeWithTag(SettingsScreenTestTags.SCROLL_CONTAINER)
-            .performScrollToNode(hasTestTag(SettingsScreenTestTags.BACK_BUTTON))
-        composeRule.onNodeWithTag(SettingsScreenTestTags.BACK_BUTTON).assertIsDisplayed()
+            .performScrollToNode(hasTestTag(SettingsScreenTestTags.importBackupButton(lastBackup.uri)))
+        composeRule
+            .onNodeWithTag(SettingsScreenTestTags.importBackupButton(lastBackup.uri))
+            .assertIsDisplayed()
     }
 }
 
