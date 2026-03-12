@@ -647,3 +647,19 @@
 - 下一步：
   1. 等待用户在 Android Studio 编译并上传手机执行 Step 16 手工验证（分类预筛选、`All Items` 全量入口、筛选保持、紧凑布局）。
   2. 在用户明确“Step 16 验证通过”前，不进入 Step 17。
+
+### 2026-03-12 - Step 16 后续微调：Category 列表进一步紧凑化
+- 状态：`done`
+- 关键产出：
+  - 进一步压缩 `CategoryScreen` 列表视觉密度：降低列表项间距、行内垂直间距与行内 padding。
+  - 将分类行操作区从固定 `Row` 调整为 `LazyRow`，并将操作按钮改为小尺寸（更紧凑的最小高度与内容内边距），避免小屏设备上 `Down` 按钮被裁切导致的额外留白。
+  - 同步压缩 `All Items` 行样式（标题与计数字号、行内间距与 padding）以保持列表视觉一致性。
+- 测试结果：
+  - `.\gradlew.bat :app:testDebugUnitTest`：通过
+  - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.category.CategoryScreenInteractionTest`：通过（8/8）
+  - 真机设备：`SM-S901U1 - Android 16`
+  - 执行备注：首次定向测试遭遇历史签名冲突（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`），执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后重跑通过。
+- 阻塞项：无代码阻塞（等待用户手工视觉验收）。
+- 下一步：
+  1. 等待用户在手机端确认 Category 列表紧凑度是否满足预期。
+  2. 在用户明确“Step 16 验证通过”前，不进入 Step 17。

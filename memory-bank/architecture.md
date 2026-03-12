@@ -128,6 +128,7 @@
   - 在 `ItemListViewModel` 固化路由进入策略：首次按 `initialCategoryId` 应用默认筛选；用户手动改筛选后返回列表保持用户选择；当来源分类变化时重置为新来源筛选。
   - 重构 `CategoryScreen` 导航入口：移除底部 `Go To Item List`，改为“分类行点击进预筛选列表 + 列表末尾固定 `All Items` 行进全量列表”。
   - 紧凑化 `Category/ItemList` 高频区域：分类列表行间距与行高下调；ItemList 顶部状态区压缩为单行，分类/排序控件统一为横向可滚动 chips。
+  - Step 16 后续微调：进一步压缩 `Category` 行间距与行内间距，并将行内操作按钮改为小尺寸横向滚动布局，避免小屏设备上的按钮裁切与视觉留白过大问题。
   - 新增并更新测试契约：补充 Category 行点击预筛选、`All Items` 全量入口、筛选保持回归与 `ItemListViewModel` 路由策略单测。
   - 本轮仅变更 UI/导航与测试契约，不改数据库 schema、备份格式、导入导出语义与数据层存储契约。
 - 2026-03-10

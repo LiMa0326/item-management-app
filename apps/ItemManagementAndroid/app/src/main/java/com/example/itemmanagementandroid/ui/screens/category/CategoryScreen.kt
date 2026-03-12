@@ -2,13 +2,17 @@ package com.example.itemmanagementandroid.ui.screens.category
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +55,7 @@ fun CategoryScreen(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(text = "Category Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
@@ -79,7 +83,7 @@ fun CategoryScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .testTag(CategoryScreenTestTags.CATEGORY_LIST),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             itemsIndexed(
                 items = state.categories,
@@ -210,16 +214,16 @@ private fun CategoryRow(
             .fillMaxWidth()
             .testTag(CategoryScreenTestTags.categoryRow(category.id))
             .clickable(onClick = onOpenItemList)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = category.name,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleSmall
             )
             if (category.isSystemDefault) {
                 Text(
@@ -236,41 +240,66 @@ private fun CategoryRow(
         }
         Text(
             text = "Items: ${category.itemCount}",
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.labelMedium
         )
-        Row(
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            contentPadding = PaddingValues(end = 4.dp)
         ) {
-            OutlinedButton(
-                modifier = Modifier.testTag(CategoryScreenTestTags.renameButton(category.id)),
-                onClick = onRename
-            ) {
-                Text(text = "Rename")
-            }
-            OutlinedButton(
-                modifier = Modifier.testTag(CategoryScreenTestTags.archiveButton(category.id)),
-                onClick = onToggleArchived
-            ) {
-                Text(text = if (category.isArchived) "Unarchive" else "Archive")
-            }
-            OutlinedButton(
-                modifier = Modifier.testTag(CategoryScreenTestTags.moveUpButton(category.id)),
-                enabled = canMoveUp,
-                onClick = onMoveUp
-            ) {
-                Text(text = "Up")
-            }
-            OutlinedButton(
-                modifier = Modifier.testTag(CategoryScreenTestTags.moveDownButton(category.id)),
-                enabled = canMoveDown,
-                onClick = onMoveDown
-            ) {
-                Text(text = "Down")
+            items(
+                items = listOf(
+                    CategoryActionItem(
+                        tag = CategoryScreenTestTags.renameButton(category.id),
+                        label = "Rename",
+                        enabled = true,
+                        onClick = onRename
+                    ),
+                    CategoryActionItem(
+                        tag = CategoryScreenTestTags.archiveButton(category.id),
+                        label = if (category.isArchived) "Unarchive" else "Archive",
+                        enabled = true,
+                        onClick = onToggleArchived
+                    ),
+                    CategoryActionItem(
+                        tag = CategoryScreenTestTags.moveUpButton(category.id),
+                        label = "Up",
+                        enabled = canMoveUp,
+                        onClick = onMoveUp
+                    ),
+                    CategoryActionItem(
+                        tag = CategoryScreenTestTags.moveDownButton(category.id),
+                        label = "Down",
+                        enabled = canMoveDown,
+                        onClick = onMoveDown
+                    )
+                ),
+                key = { action -> action.tag }
+            ) { action ->
+                OutlinedButton(
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 32.dp)
+                        .testTag(action.tag),
+                    enabled = action.enabled,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                    onClick = action.onClick
+                ) {
+                    Text(
+                        text = action.label,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
         }
     }
 }
+
+private data class CategoryActionItem(
+    val tag: String,
+    val label: String,
+    val enabled: Boolean,
+    val onClick: () -> Unit
+)
 
 @Composable
 private fun AllItemsRow(
@@ -282,16 +311,16 @@ private fun AllItemsRow(
             .fillMaxWidth()
             .testTag(CategoryScreenTestTags.ALL_ITEMS_ROW)
             .clickable(onClick = onClick)
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
             text = "All Items",
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleSmall
         )
         Text(
             text = "Items: $totalItemCount",
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.labelMedium
         )
     }
 }
