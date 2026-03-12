@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-10）
-- 当前阶段：Step 15（全局页面骨架与导航统一）已完成，等待用户手工验证后决定是否进入 Step 16
+## 当前总览（截至 2026-03-12）
+- 当前阶段：Step 16（Category 与 ItemList 联动与紧凑化）已完成代码与测试执行，等待用户手工验证后决定是否进入 Step 17
 - 总状态：`in_progress`
-- 说明：已完成 Step 15 代码改动与自动化测试（含真机），当前按用户要求暂停在 Step 15，等待用户手工验证结论。
+- 说明：已完成 Step 16 实现与真机自动化测试执行；当前按用户要求暂停在 Step 16，等待用户手工验证结论。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -613,3 +613,37 @@
 - 下一步：
   1. 等待用户手工验证本轮 Step 15 后续微调（Overflow toggle、正文按钮移除、Refresh/Settings 保持可用）。
   2. 在用户明确“验证通过”前，不进入 Step 16。
+
+### 2026-03-12 - Step 16：Category 与 ItemList 联动与紧凑化
+- 状态：`done`
+- 关键产出：
+  - `AppRoute.ItemList` 从 object 升级为 `data class ItemList(initialCategoryId: String? = null)`，支持 Category 到 ItemList 的来源分类预筛选参数。
+  - `ItemListViewModel` 新增 `onRouteEntered(initialCategoryId)` 与“用户手动覆盖优先”策略：
+    - 首次进入按来源分类应用默认筛选；
+    - 用户手动修改后，返回详情再回列表保持手动筛选；
+    - 来源分类变化时重置为新来源筛选。
+  - `CategoryScreen` 移除底部 `Go To Item List` 按钮；改为“分类行点击进入预筛选列表”，并在分类列表末尾新增固定 `All Items` 行进入全量列表。
+  - `Category/ItemList` 页面高频区域完成紧凑化：
+    - Category 列表行间距与行高压缩；
+    - ItemList 顶部状态区改为单行；
+    - 分类筛选与排序统一为横向可滚动 chips（保留既有 testTag 主键）。
+  - 新增/更新测试：
+    - JVM：`ItemListViewModelTest`（预筛选、手动覆盖保持、来源变化重置）。
+    - 设备：`NavigationFlowIntegrationTest`（新增预筛选与筛选保持回归）、`CategoryScreenInteractionTest`（新增分类行与 `All Items` 导航断言）。
+- 测试结果：
+  - 自动化（Agent）执行：
+    - `.\gradlew.bat :app:testDebugUnitTest`：通过
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`：通过（4/4）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.category.CategoryScreenInteractionTest`：通过（8/8）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenInteractionTest`：通过（10/10）
+    - `.\gradlew.bat connectedAndroidTest`：通过（49/49）
+  - 真机设备：
+    - `SM-S901U1 - Android 16`
+  - 执行备注：
+    - 初次设备测试受 ADB 沙箱目录权限影响（`C:\\Users\\CodexSandboxOffline\\.android`），提权后恢复执行。
+    - 首次安装受历史签名冲突影响（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`），执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后恢复。
+    - 全量测试首轮出现 `ItemEditFlowIntegrationTest.saveFromItemEdit_navigatesToDetail_thenBackToItemList` 失败，修正测试稳定性后复跑全量通过。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机执行 Step 16 手工验证（分类预筛选、`All Items` 全量入口、筛选保持、紧凑布局）。
+  2. 在用户明确“Step 16 验证通过”前，不进入 Step 17。

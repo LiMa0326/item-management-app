@@ -1,15 +1,20 @@
 package com.example.itemmanagementandroid
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.itemmanagementandroid.ui.components.AppPageScaffoldTestTags
+import com.example.itemmanagementandroid.ui.screens.category.CategoryScreenTestTags
 import com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenTestTags
 import com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditScreenTestTags
+import com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenTestTags
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,7 +29,7 @@ class NavigationFlowIntegrationTest {
         composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
         composeRule.onNodeWithTag(AppPageScaffoldTestTags.OVERFLOW_BUTTON).assertIsDisplayed()
 
-        composeRule.onNodeWithText("Go To Item List").performClick()
+        composeRule.onNodeWithTag(CategoryScreenTestTags.ALL_ITEMS_ROW).performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
 
         composeRule.onNodeWithText("Go To Item Detail").performClick()
@@ -77,14 +82,40 @@ class NavigationFlowIntegrationTest {
             .performClick()
         composeRule.onNodeWithText("Include archived: true").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Go To Item List").performClick()
+        composeRule.onNodeWithTag(CategoryScreenTestTags.ALL_ITEMS_ROW).performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Include deleted: false").assertIsDisplayed()
+        composeRule.onNodeWithText("Include deleted: false | Loaded items:", substring = true)
+            .assertIsDisplayed()
 
         composeRule.onNodeWithTag(AppPageScaffoldTestTags.OVERFLOW_BUTTON).performClick()
         composeRule
             .onNodeWithTag(AppPageScaffoldTestTags.overflowAction("toggle_include_deleted"))
             .performClick()
-        composeRule.onNodeWithText("Include deleted: true").assertIsDisplayed()
+        composeRule.onNodeWithText("Include deleted: true | Loaded items:", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun categoryRowNavigation_appliesPrefilter_thenManualFilterPersistsOnBack() {
+        composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
+
+        composeRule
+            .onNodeWithTag(CategoryScreenTestTags.categoryRow("cat_electronics"))
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
+        composeRule.onNodeWithTag(ItemListScreenTestTags.categoryFilterButton("cat_electronics"))
+            .assertIsDisplayed()
+            .assertIsSelected()
+
+        composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON).performClick()
+        composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON).assertIsSelected()
+        composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON).performClick()
+        composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON).performClick()
+        composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
+        composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON)
+            .assertIsDisplayed()
+            .assertIsSelected()
     }
 }

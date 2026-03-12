@@ -48,8 +48,8 @@ class AppNavigationViewModel : ViewModel() {
             while (backStack.size > 1) {
                 backStack.removeAt(backStack.lastIndex)
             }
-            if (backStack.lastOrNull() != AppRoute.ItemList) {
-                backStack.add(AppRoute.ItemList)
+            if (backStack.lastOrNull() !is AppRoute.ItemList) {
+                backStack.add(AppRoute.ItemList())
             }
         }
 

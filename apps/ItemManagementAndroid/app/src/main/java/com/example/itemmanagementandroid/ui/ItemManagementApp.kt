@@ -109,7 +109,7 @@ fun ItemManagementApp() {
                 }
             }
 
-            AppRoute.ItemList -> {
+            is AppRoute.ItemList -> {
                 val itemListViewModelFactory = remember(dependencies) {
                     singleViewModelFactory {
                         ItemListViewModel(
@@ -121,7 +121,7 @@ fun ItemManagementApp() {
                 }
                 val itemListViewModel: ItemListViewModel = viewModel(factory = itemListViewModelFactory)
                 LaunchedEffect(currentRoute) {
-                    itemListViewModel.refresh()
+                    itemListViewModel.onRouteEntered(initialCategoryId = currentRoute.initialCategoryId)
                 }
                 val itemListState by itemListViewModel.uiState.collectAsState()
                 val toggleIncludeDeletedOverflowAction = AppOverflowAction(

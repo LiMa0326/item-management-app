@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
@@ -44,18 +45,15 @@ fun CategoryScreen(
     val renameTarget = state.categories.firstOrNull { category ->
         category.id == renameTargetCategoryId
     }
+    val totalItemCount = state.categories.sumOf(CategoryListItemUiModel::itemCount)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(text = "Category Screen", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            text = "Loaded categories: ${state.categories.size}",
-            style = MaterialTheme.typography.bodyMedium
-        )
         Text(
             text = "Include archived: ${state.includeArchived}",
             style = MaterialTheme.typography.bodyMedium
@@ -81,7 +79,7 @@ fun CategoryScreen(
                 .fillMaxWidth()
                 .weight(1f)
                 .testTag(CategoryScreenTestTags.CATEGORY_LIST),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             itemsIndexed(
                 items = state.categories,
@@ -91,6 +89,9 @@ fun CategoryScreen(
                     category = category,
                     canMoveUp = index > 0,
                     canMoveDown = index < state.categories.lastIndex,
+                    onOpenItemList = {
+                        onNavigate(AppRoute.ItemList(initialCategoryId = category.id))
+                    },
                     onRename = {
                         renameTargetCategoryId = category.id
                         renameCategoryName = category.name
@@ -105,13 +106,14 @@ fun CategoryScreen(
                     onMoveDown = { onMoveCategoryDown(category.id) }
                 )
             }
-        }
-
-        Button(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onNavigate(AppRoute.ItemList) }
-        ) {
-            Text(text = "Go To Item List")
+            item(key = CategoryScreenTestTags.ALL_ITEMS_ROW) {
+                AllItemsRow(
+                    totalItemCount = totalItemCount,
+                    onClick = {
+                        onNavigate(AppRoute.ItemList(initialCategoryId = null))
+                    }
+                )
+            }
         }
     }
 
@@ -197,6 +199,7 @@ private fun CategoryRow(
     category: CategoryListItemUiModel,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    onOpenItemList: () -> Unit,
     onRename: () -> Unit,
     onToggleArchived: () -> Unit,
     onMoveUp: () -> Unit,
@@ -206,8 +209,9 @@ private fun CategoryRow(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(CategoryScreenTestTags.categoryRow(category.id))
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .clickable(onClick = onOpenItemList)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -268,8 +272,33 @@ private fun CategoryRow(
     }
 }
 
+@Composable
+private fun AllItemsRow(
+    totalItemCount: Int,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(CategoryScreenTestTags.ALL_ITEMS_ROW)
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "All Items",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            text = "Items: $totalItemCount",
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
 object CategoryScreenTestTags {
     const val CATEGORY_LIST = "category_list"
+    const val ALL_ITEMS_ROW = "category_all_items_row"
     const val CREATE_CATEGORY_BUTTON = "create_category_button"
     const val CREATE_CATEGORY_INPUT = "create_category_input"
     const val CREATE_CATEGORY_CONFIRM_BUTTON = "create_category_confirm_button"

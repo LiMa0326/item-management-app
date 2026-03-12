@@ -6,6 +6,8 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -36,6 +38,7 @@ class ItemEditFlowIntegrationTest {
         navigateToItemList()
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
+        selectDefaultCategory()
 
         composeRule
             .onNodeWithTag(ItemEditScreenTestTags.NAME_INPUT)
@@ -78,6 +81,7 @@ class ItemEditFlowIntegrationTest {
         navigateToItemList()
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
+        selectDefaultCategory()
 
         composeRule
             .onNodeWithTag(ItemEditScreenTestTags.NAME_INPUT)
@@ -93,7 +97,10 @@ class ItemEditFlowIntegrationTest {
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText("Item Detail").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Item Detail").assertIsDisplayed()
         composeRule.onNodeWithText("Name: $uniqueName").assertIsDisplayed()
 
         composeRule
@@ -109,6 +116,7 @@ class ItemEditFlowIntegrationTest {
         navigateToItemList()
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
+        selectDefaultCategory()
 
         composeRule
             .onNodeWithTag(ItemEditScreenTestTags.NAME_INPUT)
@@ -146,10 +154,11 @@ class ItemEditFlowIntegrationTest {
 
         val initialCount = readCategoryItemCount(categoryId = "cat_electronics")
 
-        composeRule.onNodeWithText("Go To Item List").performClick()
+        composeRule.onNodeWithTag(CategoryScreenTestTags.ALL_ITEMS_ROW).performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
+        selectDefaultCategory()
 
         composeRule
             .onNodeWithTag(ItemEditScreenTestTags.NAME_INPUT)
@@ -173,8 +182,19 @@ class ItemEditFlowIntegrationTest {
 
     private fun navigateToItemList() {
         composeRule.onNodeWithText("Category Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Go To Item List").performClick()
+        composeRule.onNodeWithTag(CategoryScreenTestTags.ALL_ITEMS_ROW).performClick()
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
+    }
+
+    private fun selectDefaultCategory() {
+        val categoryButtonTag = ItemEditScreenTestTags.categoryOptionButton("cat_electronics")
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(categoryButtonTag).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule
+            .onNodeWithTag(categoryButtonTag)
+            .performScrollTo()
+            .performClick()
     }
 
     private fun readCategoryItemCount(categoryId: String): Int {

@@ -119,9 +119,17 @@
 - 所有页面统一 TopAppBar + Overflow，且 Overflow 统一包含 `Refresh`。
 - 除 `New Item/Edit Item` 外，移除页面底部 `Back` 按钮，避免重复导航控件。
 - `Category -> ItemList` 支持初始分类筛选参数，并保持“用户手动修改优先”。
+- `Category` 列表末尾固定 `All Items` 入口，作为全量列表主入口（不参与分类重命名/归档/排序）。
 - Settings 固定三段结构（状态+目录 / Backup / Import），仅重构信息架构，不改变备份/导入语义。
 
 ## 7. 架构洞察日志
+- 2026-03-12
+  - 完成 Step 16：`AppRoute.ItemList` 从 object 升级为 `data class ItemList(initialCategoryId: String? = null)`，用于承载 Category->ItemList 的来源预筛选参数。
+  - 在 `ItemListViewModel` 固化路由进入策略：首次按 `initialCategoryId` 应用默认筛选；用户手动改筛选后返回列表保持用户选择；当来源分类变化时重置为新来源筛选。
+  - 重构 `CategoryScreen` 导航入口：移除底部 `Go To Item List`，改为“分类行点击进预筛选列表 + 列表末尾固定 `All Items` 行进全量列表”。
+  - 紧凑化 `Category/ItemList` 高频区域：分类列表行间距与行高下调；ItemList 顶部状态区压缩为单行，分类/排序控件统一为横向可滚动 chips。
+  - 新增并更新测试契约：补充 Category 行点击预筛选、`All Items` 全量入口、筛选保持回归与 `ItemListViewModel` 路由策略单测。
+  - 本轮仅变更 UI/导航与测试契约，不改数据库 schema、备份格式、导入导出语义与数据层存储契约。
 - 2026-03-10
   - 完成 Step 15：将导航根入口从 `Home` 切换为 `Category`，并在 `AppNavigationViewModel/AppNavigationUiState` 冻结默认根栈。
   - 新增可复用页面壳 `AppPageScaffold`，统一 TopAppBar + Overflow（固定 `Refresh`）与根/非根页返回行为。
