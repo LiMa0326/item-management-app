@@ -18,6 +18,9 @@ class ItemListViewModel(
     private val listItemsUseCase: ListItemsUseCase,
     private val listItemPhotoCoversUseCase: ListItemPhotoCoversUseCase
 ) : ViewModel() {
+    private var routeInitialCategoryId: String? = null
+    private var hasUserOverriddenCategoryFilter: Boolean = false
+
     private val _uiState = MutableStateFlow(ItemListUiState())
     val uiState: StateFlow<ItemListUiState> = _uiState.asStateFlow()
 
@@ -31,6 +34,34 @@ class ItemListViewModel(
             includeDeleted = state.includeDeleted,
             searchKeyword = state.searchKeyword,
             selectedCategoryId = state.selectedCategoryId,
+            sortOption = state.sortOption
+        )
+    }
+
+    fun onRouteEntered(initialCategoryId: String?) {
+        val normalizedRouteCategoryId = normalizeCategoryId(initialCategoryId)
+        val state = _uiState.value
+        if (routeInitialCategoryId != normalizedRouteCategoryId) {
+            routeInitialCategoryId = normalizedRouteCategoryId
+            hasUserOverriddenCategoryFilter = false
+            load(
+                includeDeleted = state.includeDeleted,
+                searchKeyword = state.searchKeyword,
+                selectedCategoryId = normalizedRouteCategoryId,
+                sortOption = state.sortOption
+            )
+            return
+        }
+
+        val selectedCategoryId = if (hasUserOverriddenCategoryFilter) {
+            state.selectedCategoryId
+        } else {
+            normalizedRouteCategoryId
+        }
+        load(
+            includeDeleted = state.includeDeleted,
+            searchKeyword = state.searchKeyword,
+            selectedCategoryId = selectedCategoryId,
             sortOption = state.sortOption
         )
     }
@@ -62,14 +93,16 @@ class ItemListViewModel(
     }
 
     fun setCategoryFilter(categoryId: String?) {
-        if (_uiState.value.selectedCategoryId == categoryId) {
+        val normalizedCategoryId = normalizeCategoryId(categoryId)
+        if (_uiState.value.selectedCategoryId == normalizedCategoryId) {
             return
         }
+        hasUserOverriddenCategoryFilter = true
         val state = _uiState.value
         load(
             includeDeleted = state.includeDeleted,
             searchKeyword = state.searchKeyword,
-            selectedCategoryId = categoryId,
+            selectedCategoryId = normalizedCategoryId,
             sortOption = state.sortOption
         )
     }
@@ -164,5 +197,9 @@ class ItemListViewModel(
                 }
             }
         }
+    }
+
+    private fun normalizeCategoryId(categoryId: String?): String? {
+        return categoryId?.trim()?.takeIf(String::isNotEmpty)
     }
 }

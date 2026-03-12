@@ -11,7 +11,7 @@ sealed interface AppRoute {
         override val title: String = "Category"
     }
 
-    data object ItemList : AppRoute {
+    data class ItemList(val initialCategoryId: String? = null) : AppRoute {
         override val title: String = "Item List"
     }
 

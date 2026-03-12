@@ -13,11 +13,11 @@ class AppNavigationViewModelTest {
         assertEquals(AppRoute.Category, viewModel.uiState.value.currentRoute)
         assertFalse(viewModel.uiState.value.canGoBack)
 
-        viewModel.navigate(AppRoute.ItemList)
-        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
+        viewModel.navigate(AppRoute.ItemList())
+        assertEquals(AppRoute.ItemList(), viewModel.uiState.value.currentRoute)
         assertTrue(viewModel.uiState.value.canGoBack)
 
-        viewModel.navigate(AppRoute.ItemList)
+        viewModel.navigate(AppRoute.ItemList())
         assertEquals(2, viewModel.uiState.value.backStack.size)
 
         viewModel.navigate(AppRoute.ItemDetail())
@@ -26,7 +26,7 @@ class AppNavigationViewModelTest {
         assertEquals(3, viewModel.uiState.value.backStack.size)
 
         viewModel.goBack()
-        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
+        assertEquals(AppRoute.ItemList(), viewModel.uiState.value.currentRoute)
         assertTrue(viewModel.uiState.value.canGoBack)
 
         viewModel.goBack()
@@ -39,7 +39,7 @@ class AppNavigationViewModelTest {
         val viewModel = AppNavigationViewModel()
 
         viewModel.navigate(AppRoute.Category)
-        viewModel.navigate(AppRoute.ItemList)
+        viewModel.navigate(AppRoute.ItemList())
         viewModel.navigate(AppRoute.ItemDetail(itemId = "item_old"))
         viewModel.navigate(AppRoute.ItemEdit(itemId = "item_old"))
 
@@ -48,21 +48,21 @@ class AppNavigationViewModelTest {
         assertEquals(
             listOf(
                 AppRoute.Category,
-                AppRoute.ItemList,
+                AppRoute.ItemList(),
                 AppRoute.ItemDetail(itemId = "item_new")
             ),
             viewModel.uiState.value.backStack
         )
 
         viewModel.goBack()
-        assertEquals(AppRoute.ItemList, viewModel.uiState.value.currentRoute)
+        assertEquals(AppRoute.ItemList(), viewModel.uiState.value.currentRoute)
     }
 
     @Test
     fun navigateToCategoryRoot_resetsBackStackToCategoryOnly() {
         val viewModel = AppNavigationViewModel()
 
-        viewModel.navigate(AppRoute.ItemList)
+        viewModel.navigate(AppRoute.ItemList())
         viewModel.navigate(AppRoute.ItemDetail(itemId = "item_1"))
 
         viewModel.navigateToCategoryRoot()

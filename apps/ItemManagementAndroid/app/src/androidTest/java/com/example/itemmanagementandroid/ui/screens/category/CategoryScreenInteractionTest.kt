@@ -7,10 +7,12 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.semantics.SemanticsActions
 import com.example.itemmanagementandroid.ui.navigation.AppRoute
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -101,12 +103,43 @@ class CategoryScreenInteractionTest {
     }
 
     @Test
+    fun categoryRowClick_navigatesToItemListWithCategoryFilter() {
+        var targetRoute: AppRoute? = null
+
+        setCategoryScreenContent(
+            onNavigate = { route -> targetRoute = route }
+        )
+
+        composeRule
+            .onNodeWithTag(CategoryScreenTestTags.categoryRow("cat_a"))
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        assertEquals(AppRoute.ItemList(initialCategoryId = "cat_a"), targetRoute)
+    }
+
+    @Test
+    fun allItemsRowClick_navigatesToItemListWithoutCategoryFilter() {
+        var targetRoute: AppRoute? = null
+
+        setCategoryScreenContent(
+            onNavigate = { route -> targetRoute = route }
+        )
+
+        composeRule
+            .onNodeWithTag(CategoryScreenTestTags.ALL_ITEMS_ROW)
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        assertEquals(AppRoute.ItemList(initialCategoryId = null), targetRoute)
+    }
+
+    @Test
     fun toggleIncludeArchivedButton_notDisplayedInScreenContent() {
         setCategoryScreenContent()
         composeRule.onAllNodesWithText("Toggle Include Archived").assertCountEquals(0)
     }
 
     private fun setCategoryScreenContent(
+        onNavigate: (AppRoute) -> Unit = { _ -> },
         onCreateCategory: (String) -> Unit = {},
         onRenameCategory: (String, String) -> Unit = { _, _ -> },
         onSetArchived: (String, Boolean) -> Unit = { _, _ -> },
@@ -135,7 +168,7 @@ class CategoryScreenInteractionTest {
                         )
                     )
                 ),
-                onNavigate = { _: AppRoute -> },
+                onNavigate = onNavigate,
                 onCreateCategory = onCreateCategory,
                 onRenameCategory = onRenameCategory,
                 onSetArchived = onSetArchived,

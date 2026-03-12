@@ -12,8 +12,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,16 +37,12 @@ fun ItemListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(text = "Item List Screen", style = MaterialTheme.typography.headlineSmall)
         Text(
-            text = "Loaded items: ${state.items.size}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Text(
-            text = "Include deleted: ${state.includeDeleted}",
+            text = "Include deleted: ${state.includeDeleted} | Loaded items: ${state.items.size}",
             style = MaterialTheme.typography.bodyMedium
         )
         OutlinedTextField(
@@ -60,7 +56,6 @@ fun ItemListScreen(
             placeholder = { Text(text = "Search name/description/place/tags") }
         )
 
-        Text(text = "Category Filter", style = MaterialTheme.typography.titleSmall)
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,30 +63,27 @@ fun ItemListScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                OutlinedButton(
+                FilterChip(
                     modifier = Modifier.testTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON),
-                    onClick = { onCategoryFilterChanged(null) }
-                ) {
-                    val selectedMark = if (state.selectedCategoryId == null) "*" else ""
-                    Text(text = "All$selectedMark")
-                }
+                    selected = state.selectedCategoryId == null,
+                    onClick = { onCategoryFilterChanged(null) },
+                    label = { Text(text = "All") }
+                )
             }
 
             items(state.categoryFilters, key = { category -> category.id }) { category ->
-                OutlinedButton(
+                val archivedSuffix = if (category.isArchived) " (Archived)" else ""
+                FilterChip(
                     modifier = Modifier.testTag(
                         ItemListScreenTestTags.categoryFilterButton(category.id)
                     ),
-                    onClick = { onCategoryFilterChanged(category.id) }
-                ) {
-                    val selectedMark = if (state.selectedCategoryId == category.id) "*" else ""
-                    val archivedSuffix = if (category.isArchived) " (Archived)" else ""
-                    Text(text = "${category.name}$archivedSuffix$selectedMark")
-                }
+                    selected = state.selectedCategoryId == category.id,
+                    onClick = { onCategoryFilterChanged(category.id) },
+                    label = { Text(text = "${category.name}$archivedSuffix") }
+                )
             }
         }
 
-        Text(text = "Sort", style = MaterialTheme.typography.titleSmall)
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,13 +91,12 @@ fun ItemListScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(ItemListSortOption.entries, key = { option -> option.name }) { option ->
-                OutlinedButton(
+                FilterChip(
                     modifier = Modifier.testTag(ItemListScreenTestTags.sortOptionButton(option)),
-                    onClick = { onSortOptionChanged(option) }
-                ) {
-                    val selectedMark = if (state.sortOption == option) "*" else ""
-                    Text(text = "${option.label()}$selectedMark")
-                }
+                    selected = state.sortOption == option,
+                    onClick = { onSortOptionChanged(option) },
+                    label = { Text(text = option.label()) }
+                )
             }
         }
 
