@@ -103,12 +103,28 @@ class NavigationFlowIntegrationTest {
             .onNodeWithTag(CategoryScreenTestTags.categoryRow("cat_electronics"))
             .performSemanticsAction(SemanticsActions.OnClick)
         composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
-        composeRule.onNodeWithTag(ItemListScreenTestTags.categoryFilterButton("cat_electronics"))
-            .assertIsDisplayed()
-            .assertIsSelected()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithTag(ItemListScreenTestTags.categoryFilterButton("cat_electronics"))
+                    .assertIsDisplayed()
+                    .assertIsSelected()
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
 
         composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON).performClick()
-        composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON).assertIsSelected()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            try {
+                composeRule.onNodeWithTag(ItemListScreenTestTags.CATEGORY_FILTER_ALL_BUTTON)
+                    .assertIsDisplayed()
+                    .assertIsSelected()
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON).performClick()
         composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
 

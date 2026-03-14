@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-12）
-- 当前阶段：Step 16（Category 与 ItemList 联动与紧凑化）已完成代码与测试执行，等待用户手工验证后决定是否进入 Step 17
+## 当前总览（截至 2026-03-14）
+- 当前阶段：Step 17（Item Detail 视觉重构）已完成代码与测试执行，等待用户手工验证后决定是否进入 Step 18
 - 总状态：`in_progress`
-- 说明：已完成 Step 16 实现与真机自动化测试执行；当前按用户要求暂停在 Step 16，等待用户手工验证结论。
+- 说明：已完成 Step 17 实现与真机自动化测试执行；当前按用户要求暂停在 Step 17，等待用户手工验证结论。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -663,3 +663,34 @@
 - 下一步：
   1. 等待用户在手机端确认 Category 列表紧凑度是否满足预期。
   2. 在用户明确“Step 16 验证通过”前，不进入 Step 17。
+
+### 2026-03-14 - Step 17：Item Detail 视觉重构
+- 状态：`done`
+- 关键产出：
+  - 重构 `ItemDetailScreen` 页面结构：照片区上移至顶部，多图展示由横向改为纵向堆叠，详情字段改为 4 组分组卡片（`Basic Info / Purchase Info / Extended Info / System Info`）。
+  - 将详情状态文案从多行压缩为单行分隔显示（`loading/applying/error/action` 聚合为 `|` 分隔状态行），减少垂直占用。
+  - 保持删除/恢复/编辑的业务语义与回调链路不变（`ItemDetailViewModel` 与用例链路未改）。
+  - 扩展 `ItemDetailScreenTestTags`：新增顶部照片区、纵向堆叠容器、4 组信息卡片与状态行标签；保留既有动作按钮标签（`EDIT_BUTTON/DELETE_BUTTON/RESTORE_BUTTON`）兼容现有契约。
+  - 更新 `ItemDetailScreenInteractionTest`：覆盖分组卡片可见性、多图纵向展示与删除/恢复回归。
+  - 为通过全量回归，补充稳定性测试修正：
+    - `NavigationFlowIntegrationTest`：分类预筛选选中态改为 `waitUntil` 等待后断言；
+    - `ItemEditFlowIntegrationTest`：详情页断言改为基于 Step 17 新标签与滚动后的可见性断言，避免旧“单行拼接文本”断言与可视区抖动。
+- 测试结果：
+  - JVM（通过）：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+  - 定向设备测试（通过）：
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenInteractionTest`（3/3）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（4/4）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest`（4/4）
+  - 真机全量回归（通过）：
+    - `.\gradlew.bat connectedAndroidTest`（49/49）
+  - 真机设备：
+    - `SM-S901U1 - Android 16`
+  - 执行备注：
+    - 定向设备测试首次受 ADB 沙箱权限影响，按流程提权执行后通过；
+    - 过程中遇到一次 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后恢复；
+    - Kotlin daemon 在本机权限受限时自动回退 non-daemon 编译，未影响测试结果。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机执行 Step 17 手工验证（顶部照片区、分组卡片、状态单行、删除恢复闭环）。
+  2. 在用户明确“Step 17 验证通过”前，不进入 Step 18。
