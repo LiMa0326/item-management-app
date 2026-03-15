@@ -124,6 +124,12 @@
 - Settings 固定三段结构（状态+目录 / Backup / Import），仅重构信息架构，不改变备份/导入语义。
 
 ## 7. 架构洞察日志
+- 2026-03-15
+  - 完成 Step 17A（UI/表单标准化修复）：`ItemDetailScreen` 顶部图片区从纵向堆叠改为“单张卡片横向滑动”，在保持图片区位于详情页顶部的同时显著降低多图对正文区域的纵向挤占。
+  - `ItemEditScreen` 照片导入入口收敛为 `Take Photo + Pick From Library` 两按钮；图库入口统一复用多选选择器（单选/多选同一路径），减少重复交互分支。
+  - `ItemEdit` 购买字段规范化下沉到 `ItemEditFormMapper`：`purchaseDate` 支持宽松输入并统一归一为 `YYYY-MM-DD`；`purchasePrice` 强制 `> 0` 且保存前四舍五入到两位小数。
+  - `purchaseCurrency` UI 从自由输入改为受控下拉（10 种常用币种，`USD/CNY` 置顶），并在创建态与空值回填场景默认回落 `USD`，降低脏数据风险。
+  - 页面导航语义保持不变：`ItemEdit` 页面底部 `Refresh` 按钮移除，仅保留 TopAppBar Overflow 的统一 `Refresh` 动作；数据层/备份契约/数据库 schema 本轮无变更。
 - 2026-03-14
   - 完成 Step 17：`ItemDetailScreen` 从“连续调试文本 + 横向照片墙”升级为“顶部照片纵向堆叠 + 四组分组卡片”发布态结构。
   - 在详情页固化信息分层：`Basic Info`、`Purchase Info`、`Extended Info`、`System Info`，并将状态文案聚合为单行分隔展示，降低垂直占用。

@@ -2,6 +2,8 @@ package com.example.itemmanagementandroid.ui.screens.itemdetail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -173,16 +175,19 @@ private fun PhotoSection(photos: List<ItemDetailPhotoUiModel>) {
                 .fillMaxWidth()
                 .testTag(ItemDetailScreenTestTags.PHOTO_WALL)
         ) {
-            Column(
+            LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(ItemDetailScreenTestTags.PHOTO_STACK),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                photos.forEach { photo ->
+                items(
+                    items = photos,
+                    key = { photo -> photo.id }
+                ) { photo ->
                     OutlinedCard(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillParentMaxWidth()
                             .testTag(ItemDetailScreenTestTags.photoCard(photo.id))
                     ) {
                         Column(

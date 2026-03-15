@@ -235,7 +235,6 @@ fun ItemManagementApp() {
                         state = itemEditState,
                         canGoBack = navigationState.canGoBack,
                         onBack = navigationViewModel::goBack,
-                        onRefresh = itemEditViewModel::refresh,
                         onNameChanged = itemEditViewModel::setName,
                         onCategorySelected = itemEditViewModel::setCategoryId,
                         onPurchaseDateChanged = itemEditViewModel::setPurchaseDate,

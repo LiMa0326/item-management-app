@@ -34,11 +34,16 @@ data class ItemEditPhotoImportFailureUiModel(
 data class ItemEditFieldErrors(
     val name: String? = null,
     val categoryId: String? = null,
+    val purchaseDate: String? = null,
     val purchasePrice: String? = null,
     val customAttributes: String? = null
 ) {
     val hasAny: Boolean
-        get() = name != null || categoryId != null || purchasePrice != null || customAttributes != null
+        get() = name != null ||
+            categoryId != null ||
+            purchaseDate != null ||
+            purchasePrice != null ||
+            customAttributes != null
 }
 
 data class ItemEditUiState(

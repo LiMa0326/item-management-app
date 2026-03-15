@@ -5,8 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
@@ -95,9 +98,39 @@ class ItemEditScreenInteractionTest {
         }
     }
 
+    @Test
+    fun purchaseCurrencyDropdown_selectOption_updatesValue() {
+        var selectedCurrency: String? = null
+        setContent(
+            onPurchaseCurrencyChanged = { currency ->
+                selectedCurrency = currency
+            }
+        )
+
+        composeRule
+            .onNodeWithTag(ItemEditScreenTestTags.PURCHASE_CURRENCY_DROPDOWN)
+            .performScrollTo()
+            .performClick()
+        composeRule
+            .onNodeWithTag(ItemEditScreenTestTags.purchaseCurrencyOption("CNY"))
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertTrue(selectedCurrency == "CNY")
+        }
+    }
+
+    @Test
+    fun refreshButton_isRemovedFromEditScreen() {
+        setContent()
+
+        composeRule.onAllNodesWithText("Refresh").assertCountEquals(0)
+    }
+
     private fun setContent(
         initialState: ItemEditUiState = baseState(),
         onTagsInputChanged: (String) -> Unit = {},
+        onPurchaseCurrencyChanged: (String) -> Unit = {},
         onCustomAttributeKeyChanged: (String, String) -> Unit = { _, _ -> },
         onCustomAttributeValueChanged: (String, String) -> Unit = { _, _ -> },
         onRetryFailedPhotoImports: () -> Unit = {},
@@ -110,7 +143,6 @@ class ItemEditScreenInteractionTest {
                 state = state,
                 canGoBack = true,
                 onBack = {},
-                onRefresh = {},
                 onNameChanged = { value ->
                     state = state.copy(name = value)
                 },
@@ -125,6 +157,7 @@ class ItemEditScreenInteractionTest {
                 },
                 onPurchaseCurrencyChanged = { value ->
                     state = state.copy(purchaseCurrency = value)
+                    onPurchaseCurrencyChanged(value)
                 },
                 onPurchasePlaceChanged = { value ->
                     state = state.copy(purchasePlace = value)
@@ -184,6 +217,7 @@ class ItemEditScreenInteractionTest {
             ),
             categoryId = "cat_electronics",
             name = "Headphone",
+            purchaseCurrency = "USD",
             customAttributesRows = listOf(
                 ItemEditCustomAttributeRowUiModel(rowId = "row_0")
             )

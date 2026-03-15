@@ -5,6 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -54,11 +56,12 @@ class ItemDetailScreenInteractionTest {
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.PHOTO_WALL).assertIsDisplayed()
         composeRule
             .onNodeWithTag(ItemDetailScreenTestTags.photoCard("photo_1"))
-            .performScrollTo()
             .assertIsDisplayed()
         composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.PHOTO_STACK)
+            .performTouchInput { swipeLeft() }
+        composeRule
             .onNodeWithTag(ItemDetailScreenTestTags.photoCard("photo_2"))
-            .performScrollTo()
             .assertIsDisplayed()
     }
 

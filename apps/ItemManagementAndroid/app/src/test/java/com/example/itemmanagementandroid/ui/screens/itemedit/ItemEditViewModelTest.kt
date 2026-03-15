@@ -211,6 +211,48 @@ class ItemEditViewModelTest {
         assertEquals(1, state.photos.size)
     }
 
+    @Test
+    fun save_normalizesPurchaseDateAndPrice() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createViewModel(
+            initialItemId = null,
+            itemRepository = FakeItemRepository()
+        )
+
+        advanceUntilIdle()
+        viewModel.setName("Normalized Item")
+        viewModel.setPurchaseDate("2026/3/7")
+        viewModel.setPurchasePriceInput("10.125")
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(ItemEditMode.EDIT, state.mode)
+        assertEquals("2026-03-07", state.purchaseDate)
+        assertEquals("10.13", state.purchasePriceInput)
+    }
+
+    @Test
+    fun save_invalidPurchaseDate_setsFieldError() = runTest(mainDispatcherRule.dispatcher) {
+        val viewModel = createViewModel(
+            initialItemId = null,
+            itemRepository = FakeItemRepository()
+        )
+
+        advanceUntilIdle()
+        viewModel.setName("Invalid Date Item")
+        viewModel.setPurchaseDate("2026-02-30")
+        viewModel.save()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(
+            "Purchase date must be a valid date in YYYY-MM-DD format.",
+            state.fieldErrors.purchaseDate
+        )
+        assertEquals(ItemEditMode.CREATE, state.mode)
+    }
+
     private fun createViewModel(
         initialItemId: String?,
         itemRepository: FakeItemRepository,
@@ -238,7 +280,7 @@ class ItemEditViewModelTest {
         assertEquals("", state.name)
         assertEquals("", state.purchaseDate)
         assertEquals("", state.purchasePriceInput)
-        assertEquals("", state.purchaseCurrency)
+        assertEquals("USD", state.purchaseCurrency)
         assertEquals("", state.purchasePlace)
         assertEquals("", state.description)
         assertEquals("", state.tagsInput)
