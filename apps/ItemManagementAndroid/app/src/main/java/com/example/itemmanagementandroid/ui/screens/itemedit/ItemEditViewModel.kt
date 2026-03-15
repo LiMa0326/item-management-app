@@ -89,6 +89,7 @@ class ItemEditViewModel(
         _uiState.update { state ->
             state.copy(
                 purchaseDate = value,
+                fieldErrors = state.fieldErrors.copy(purchaseDate = null),
                 saveResultMessage = null
             )
         }
@@ -437,8 +438,13 @@ class ItemEditViewModel(
             categoryId = selectedItem?.categoryId ?: defaultCategoryId,
             name = selectedItem?.name.orEmpty(),
             purchaseDate = selectedItem?.purchaseDate.orEmpty(),
-            purchasePriceInput = selectedItem?.purchasePrice?.toString().orEmpty(),
-            purchaseCurrency = selectedItem?.purchaseCurrency.orEmpty(),
+            purchasePriceInput = selectedItem?.purchasePrice
+                ?.let(ItemEditFormMapper::formatPurchasePrice)
+                .orEmpty(),
+            purchaseCurrency = selectedItem?.purchaseCurrency
+                ?.trim()
+                ?.takeIf(String::isNotEmpty)
+                ?: DEFAULT_PURCHASE_CURRENCY,
             purchasePlace = selectedItem?.purchasePlace.orEmpty(),
             description = selectedItem?.description.orEmpty(),
             tagsInput = selectedItem?.tags?.joinToString(", ").orEmpty(),
@@ -484,6 +490,10 @@ class ItemEditViewModel(
             ItemEditFormMapper.parsePurchasePrice(state.purchasePriceInput)
         }.exceptionOrNull()?.message
 
+        val purchaseDateError = runCatching {
+            ItemEditFormMapper.normalizePurchaseDate(state.purchaseDate)
+        }.exceptionOrNull()?.message
+
         val customAttributesError = runCatching {
             ItemEditFormMapper.parseCustomAttributes(state.customAttributesRows)
         }.exceptionOrNull()?.message
@@ -491,6 +501,7 @@ class ItemEditViewModel(
         return ItemEditFieldErrors(
             name = nameError,
             categoryId = categoryError,
+            purchaseDate = purchaseDateError,
             purchasePrice = purchasePriceError,
             customAttributes = customAttributesError
         )
@@ -500,9 +511,11 @@ class ItemEditViewModel(
         return ItemDraft(
             categoryId = state.categoryId.trim(),
             name = state.name.trim(),
-            purchaseDate = state.purchaseDate.trim().ifEmpty { null },
+            purchaseDate = ItemEditFormMapper.normalizePurchaseDate(state.purchaseDate),
             purchasePrice = ItemEditFormMapper.parsePurchasePrice(state.purchasePriceInput),
-            purchaseCurrency = state.purchaseCurrency.trim().ifEmpty { null },
+            purchaseCurrency = state.purchaseCurrency
+                .trim()
+                .ifEmpty { DEFAULT_PURCHASE_CURRENCY },
             purchasePlace = state.purchasePlace.trim().ifEmpty { null },
             description = state.description.trim().ifEmpty { null },
             tags = ItemEditFormMapper.parseTags(state.tagsInput),
@@ -587,6 +600,8 @@ class ItemEditViewModel(
     )
 
     private companion object {
+        const val DEFAULT_PURCHASE_CURRENCY = "USD"
+
         val AUTO_NAME_FORMATTER: DateTimeFormatter =
             DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
                 .withZone(ZoneOffset.UTC)

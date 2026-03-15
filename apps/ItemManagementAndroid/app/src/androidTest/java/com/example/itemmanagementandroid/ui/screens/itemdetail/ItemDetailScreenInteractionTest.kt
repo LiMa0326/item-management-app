@@ -5,6 +5,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -24,12 +26,42 @@ class ItemDetailScreenInteractionTest {
             )
         }
 
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.PHOTO_SECTION).assertIsDisplayed()
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.PHOTO_STACK).assertIsDisplayed()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.FIELD_SECTION).assertIsDisplayed()
-        composeRule.onNodeWithTag(ItemDetailScreenTestTags.CREATED_AT_TEXT).assertIsDisplayed()
-        composeRule.onNodeWithTag(ItemDetailScreenTestTags.UPDATED_AT_TEXT).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.BASIC_INFO_CARD)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.PURCHASE_INFO_CARD)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.EXTENDED_INFO_CARD)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.SYSTEM_INFO_CARD)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.CREATED_AT_TEXT)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.UPDATED_AT_TEXT)
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onNodeWithTag(ItemDetailScreenTestTags.PHOTO_WALL).assertIsDisplayed()
         composeRule
             .onNodeWithTag(ItemDetailScreenTestTags.photoCard("photo_1"))
+            .assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.PHOTO_STACK)
+            .performTouchInput { swipeLeft() }
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.photoCard("photo_2"))
             .assertIsDisplayed()
     }
 
@@ -105,6 +137,15 @@ class ItemDetailScreenInteractionTest {
                     thumbnailUri = "file:///photos/photo_1_thumb.jpg",
                     width = 1200,
                     height = 1600
+                ),
+                ItemDetailPhotoUiModel(
+                    id = "photo_2",
+                    displayUri = "file:///photos/photo_2.jpg",
+                    contentType = "image/jpeg",
+                    localUri = "file:///photos/photo_2.jpg",
+                    thumbnailUri = "file:///photos/photo_2_thumb.jpg",
+                    width = 900,
+                    height = 900
                 )
             )
         )

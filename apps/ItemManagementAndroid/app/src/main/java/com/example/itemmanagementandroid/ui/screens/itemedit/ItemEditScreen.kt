@@ -6,10 +6,12 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,6 +20,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
@@ -32,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.example.itemmanagementandroid.ui.components.UriImage
@@ -40,12 +48,12 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ItemEditScreen(
     state: ItemEditUiState,
     canGoBack: Boolean,
     onBack: () -> Unit,
-    onRefresh: () -> Unit,
     onNameChanged: (String) -> Unit,
     onCategorySelected: (String) -> Unit,
     onPurchaseDateChanged: (String) -> Unit,
@@ -67,6 +75,7 @@ fun ItemEditScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var isCurrencyMenuExpanded by remember { mutableStateOf(false) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -77,14 +86,6 @@ fun ItemEditScreen(
             onImportPhotoUris(listOf(uri.toString()))
         } else if (uri != null) {
             runCatching { uri.path?.let(::File)?.delete() }
-        }
-    }
-
-    val pickSingleLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            onImportPhotoUris(listOf(uri.toString()))
         }
     }
 
@@ -165,37 +166,40 @@ fun ItemEditScreen(
             OutlinedButton(
                 modifier = Modifier
                     .weight(1f)
+                    .height(52.dp)
                     .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_CAMERA_BUTTON),
                 enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 onClick = ::launchCameraCapture
             ) {
-                Text(text = "Take Photo")
+                Text(
+                    text = "Take Photo",
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
             OutlinedButton(
                 modifier = Modifier
                     .weight(1f)
-                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_PICK_SINGLE_BUTTON),
+                    .height(52.dp)
+                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_PICK_LIBRARY_BUTTON),
                 enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
-                onClick = {
-                    pickSingleLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
-            ) {
-                Text(text = "Pick One")
-            }
-            OutlinedButton(
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag(ItemEditScreenTestTags.PHOTO_IMPORT_PICK_MULTIPLE_BUTTON),
-                enabled = !state.isLoading && !state.isSaving && !state.isImportingPhotos,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 onClick = {
                     pickMultipleLauncher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 }
             ) {
-                Text(text = "Pick Multiple")
+                Text(
+                    text = "Pick From Library",
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
         }
         if (state.photoImportFailures.isNotEmpty()) {
@@ -305,6 +309,9 @@ fun ItemEditScreen(
             singleLine = true,
             label = { Text(text = "Purchase Date (YYYY-MM-DD)") }
         )
+        state.fieldErrors.purchaseDate?.let { purchaseDateError ->
+            Text(text = purchaseDateError, style = MaterialTheme.typography.bodySmall)
+        }
         OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
@@ -318,15 +325,46 @@ fun ItemEditScreen(
             Text(text = purchasePriceError, style = MaterialTheme.typography.bodySmall)
         }
 
-        OutlinedTextField(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(ItemEditScreenTestTags.PURCHASE_CURRENCY_INPUT),
-            value = state.purchaseCurrency,
-            onValueChange = onPurchaseCurrencyChanged,
-            singleLine = true,
-            label = { Text(text = "Purchase Currency") }
-        )
+        ExposedDropdownMenuBox(
+            expanded = isCurrencyMenuExpanded,
+            onExpandedChange = { isExpanded ->
+                if (!state.isLoading && !state.isSaving && !state.isImportingPhotos) {
+                    isCurrencyMenuExpanded = isExpanded
+                }
+            }
+        ) {
+            OutlinedTextField(
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .testTag(ItemEditScreenTestTags.PURCHASE_CURRENCY_DROPDOWN),
+                value = state.purchaseCurrency,
+                onValueChange = {},
+                singleLine = true,
+                readOnly = true,
+                label = { Text(text = "Purchase Currency") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCurrencyMenuExpanded)
+                }
+            )
+            DropdownMenu(
+                expanded = isCurrencyMenuExpanded,
+                onDismissRequest = { isCurrencyMenuExpanded = false }
+            ) {
+                PURCHASE_CURRENCY_OPTIONS.forEach { currencyCode ->
+                    DropdownMenuItem(
+                        modifier = Modifier.testTag(
+                            ItemEditScreenTestTags.purchaseCurrencyOption(currencyCode)
+                        ),
+                        text = { Text(text = currencyCode) },
+                        onClick = {
+                            isCurrencyMenuExpanded = false
+                            onPurchaseCurrencyChanged(currencyCode)
+                        }
+                    )
+                }
+            }
+        }
         OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
@@ -387,11 +425,18 @@ fun ItemEditScreen(
                 OutlinedButton(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .width(96.dp)
+                        .width(88.dp)
                         .testTag(ItemEditScreenTestTags.removeCustomAttributeButton(row.rowId)),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                     onClick = { onRemoveCustomAttributeRow(row.rowId) }
                 ) {
-                    Text(text = "Remove")
+                    Text(
+                        text = "Remove",
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
         }
@@ -408,14 +453,6 @@ fun ItemEditScreen(
             Text(text = "Add Custom Attribute")
         }
 
-        Button(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(ItemEditScreenTestTags.REFRESH_BUTTON),
-            onClick = onRefresh
-        ) {
-            Text(text = "Refresh")
-        }
         Button(
             modifier = Modifier
                 .fillMaxWidth()
@@ -468,8 +505,7 @@ object ItemEditScreenTestTags {
     const val PHOTO_LIST = "item_edit_photo_list"
     const val EMPTY_PHOTO_CARD = "item_edit_photo_card_empty"
     const val PHOTO_IMPORT_CAMERA_BUTTON = "item_edit_photo_import_camera_button"
-    const val PHOTO_IMPORT_PICK_SINGLE_BUTTON = "item_edit_photo_import_pick_single_button"
-    const val PHOTO_IMPORT_PICK_MULTIPLE_BUTTON = "item_edit_photo_import_pick_multiple_button"
+    const val PHOTO_IMPORT_PICK_LIBRARY_BUTTON = "item_edit_photo_import_pick_library_button"
     const val PHOTO_IMPORT_RETRY_BUTTON = "item_edit_photo_import_retry_button"
     const val PHOTO_IMPORT_STATUS_TEXT = "item_edit_photo_import_status_text"
     const val PHOTO_IMPORT_MESSAGE_TEXT = "item_edit_photo_import_message_text"
@@ -477,12 +513,11 @@ object ItemEditScreenTestTags {
     const val NAME_INPUT = "item_edit_name_input"
     const val PURCHASE_DATE_INPUT = "item_edit_purchase_date_input"
     const val PURCHASE_PRICE_INPUT = "item_edit_purchase_price_input"
-    const val PURCHASE_CURRENCY_INPUT = "item_edit_purchase_currency_input"
+    const val PURCHASE_CURRENCY_DROPDOWN = "item_edit_purchase_currency_dropdown"
     const val PURCHASE_PLACE_INPUT = "item_edit_purchase_place_input"
     const val DESCRIPTION_INPUT = "item_edit_description_input"
     const val TAGS_INPUT = "item_edit_tags_input"
     const val ADD_CUSTOM_ATTRIBUTE_BUTTON = "item_edit_add_custom_attribute_button"
-    const val REFRESH_BUTTON = "item_edit_refresh_button"
     const val SAVE_BUTTON = "item_edit_save_button"
     const val CANCEL_BUTTON = "item_edit_cancel_button"
     const val BACK_BUTTON = "item_edit_back_button"
@@ -493,9 +528,24 @@ object ItemEditScreenTestTags {
     fun customAttributeValueInput(rowId: String): String = "item_edit_custom_attribute_value_$rowId"
     fun removeCustomAttributeButton(rowId: String): String = "item_edit_custom_attribute_remove_$rowId"
     fun photoCard(photoId: String): String = "item_edit_photo_card_$photoId"
+    fun purchaseCurrencyOption(currencyCode: String): String {
+        return "item_edit_purchase_currency_option_${currencyCode.lowercase()}"
+    }
 }
 
 private const val CAMERA_CAPTURE_DIRECTORY = "camera-captures"
+private val PURCHASE_CURRENCY_OPTIONS = listOf(
+    "USD",
+    "CNY",
+    "JPY",
+    "EUR",
+    "GBP",
+    "HKD",
+    "CAD",
+    "AUD",
+    "SGD",
+    "KRW"
+)
 
 private val CAMERA_FILE_TIME_FORMATTER: DateTimeFormatter =
     DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS")

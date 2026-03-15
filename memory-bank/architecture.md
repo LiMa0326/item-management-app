@@ -120,9 +120,22 @@
 - 除 `New Item/Edit Item` 外，移除页面底部 `Back` 按钮，避免重复导航控件。
 - `Category -> ItemList` 支持初始分类筛选参数，并保持“用户手动修改优先”。
 - `Category` 列表末尾固定 `All Items` 入口，作为全量列表主入口（不参与分类重命名/归档/排序）。
+- `Item Detail` 视觉结构固定为“顶部照片纵向堆叠 + 分组卡片（Basic/Purchase/Extended/System）+ 状态单行分隔提示”。
 - Settings 固定三段结构（状态+目录 / Backup / Import），仅重构信息架构，不改变备份/导入语义。
 
 ## 7. 架构洞察日志
+- 2026-03-15
+  - 完成 Step 17A（UI/表单标准化修复）：`ItemDetailScreen` 顶部图片区从纵向堆叠改为“单张卡片横向滑动”，在保持图片区位于详情页顶部的同时显著降低多图对正文区域的纵向挤占。
+  - `ItemEditScreen` 照片导入入口收敛为 `Take Photo + Pick From Library` 两按钮；图库入口统一复用多选选择器（单选/多选同一路径），减少重复交互分支。
+  - `ItemEdit` 购买字段规范化下沉到 `ItemEditFormMapper`：`purchaseDate` 支持宽松输入并统一归一为 `YYYY-MM-DD`；`purchasePrice` 强制 `> 0` 且保存前四舍五入到两位小数。
+  - `purchaseCurrency` UI 从自由输入改为受控下拉（10 种常用币种，`USD/CNY` 置顶），并在创建态与空值回填场景默认回落 `USD`，降低脏数据风险。
+  - 页面导航语义保持不变：`ItemEdit` 页面底部 `Refresh` 按钮移除，仅保留 TopAppBar Overflow 的统一 `Refresh` 动作；数据层/备份契约/数据库 schema 本轮无变更。
+- 2026-03-14
+  - 完成 Step 17：`ItemDetailScreen` 从“连续调试文本 + 横向照片墙”升级为“顶部照片纵向堆叠 + 四组分组卡片”发布态结构。
+  - 在详情页固化信息分层：`Basic Info`、`Purchase Info`、`Extended Info`、`System Info`，并将状态文案聚合为单行分隔展示，降低垂直占用。
+  - 保持删除/恢复/编辑语义与 `ItemDetailViewModel` 数据流程不变，本轮不涉及 Repository/UseCase/DB/Backup 契约变更。
+  - 扩展详情页测试契约：新增 `STATUS_LINE/PHOTO_SECTION/PHOTO_STACK/BASIC_INFO_CARD/PURCHASE_INFO_CARD/EXTENDED_INFO_CARD/SYSTEM_INFO_CARD` 标签，同时保留 `EDIT_BUTTON/DELETE_BUTTON/RESTORE_BUTTON` 兼容链路。
+  - 为完成全量回归，对 `NavigationFlowIntegrationTest` 与 `ItemEditFlowIntegrationTest` 做可视区与时序稳定性修正（`waitUntil + scrollTo + tag-based assertion`），避免旧文本拼接断言在新布局下误报。
 - 2026-03-12
   - 完成 Step 16：`AppRoute.ItemList` 从 object 升级为 `data class ItemList(initialCategoryId: String? = null)`，用于承载 Category->ItemList 的来源预筛选参数。
   - 在 `ItemListViewModel` 固化路由进入策略：首次按 `initialCategoryId` 应用默认筛选；用户手动改筛选后返回列表保持用户选择；当来源分类变化时重置为新来源筛选。
@@ -1083,3 +1096,25 @@
 ### 25.6 架构洞察日志（Step 15 后续）
 - 将“全局展示级开关”（include archived/deleted）统一迁移到 `AppPageScaffold` Overflow 后，页面正文组件可减少跨层导航壳耦合参数，Composable 签名更稳定。
 - 该迁移不触及 Repository/UseCase/ViewModel 数据语义，仅调整交互入口；因此属于 UI 契约层变更，可通过现有状态流测试与导航回归覆盖风险。
+
+## 26. Step 17 新增/修改文件职责（2026-03-14）
+> 范围：`apps/ItemManagementAndroid/app/src/`
+
+### 26.1 详情页 UI 结构重构
+- `main/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreen.kt`
+  - 将详情页重构为发布态信息结构：
+    - 顶部照片区 + 纵向多图堆叠卡片；
+    - 字段分组卡片（`Basic/Purchase/Extended/System`）；
+    - 状态单行分隔提示（`loading/applying/error/action`）。
+  - 保持删除/恢复/编辑动作回调与启用条件不变。
+  - 扩展 `ItemDetailScreenTestTags`：新增顶部照片区、纵向堆叠容器、分组卡片与状态行标签；保留既有动作标签兼容旧测试入口。
+
+### 26.2 详情页交互测试契约更新
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemdetail/ItemDetailScreenInteractionTest.kt`
+  - 更新 Step 17 契约断言：分组卡片可见性、多图纵向展示（双图样本）、删除/恢复回归。
+
+### 26.3 回归稳定性测试修正
+- `androidTest/java/com/example/itemmanagementandroid/NavigationFlowIntegrationTest.kt`
+  - 在分类预筛选选中态断言增加 `waitUntil` 机制，降低设备端异步刷新时序造成的误报。
+- `androidTest/java/com/example/itemmanagementandroid/ui/screens/itemedit/ItemEditFlowIntegrationTest.kt`
+  - 详情页断言切换为 Step 17 标签与滚动可见性断言，兼容“标签+值分离文本节点”与详情页新增顶部照片区后的可视区变化。

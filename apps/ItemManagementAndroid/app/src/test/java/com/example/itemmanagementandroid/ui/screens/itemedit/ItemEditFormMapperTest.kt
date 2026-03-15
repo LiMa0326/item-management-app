@@ -23,6 +23,48 @@ class ItemEditFormMapperTest {
     }
 
     @Test
+    fun parsePurchasePrice_negativeValue_throws() {
+        val throwable = runCatching {
+            ItemEditFormMapper.parsePurchasePrice("-0.01")
+        }.exceptionOrNull()
+
+        assertTrue(throwable is IllegalArgumentException)
+        assertEquals("Purchase price must be greater than or equal to 0.", throwable?.message)
+    }
+
+    @Test
+    fun parsePurchasePrice_zeroValue_isAllowed() {
+        val parsed = ItemEditFormMapper.parsePurchasePrice("0")
+
+        assertEquals(0.0, parsed ?: -1.0, 0.000001)
+    }
+
+    @Test
+    fun parsePurchasePrice_roundsToTwoDecimalPlaces() {
+        val parsed = ItemEditFormMapper.parsePurchasePrice("10.125")
+
+        assertEquals(10.13, parsed ?: 0.0, 0.000001)
+    }
+
+    @Test
+    fun normalizePurchaseDate_supportsLooseInputs() {
+        assertEquals("2026-03-07", ItemEditFormMapper.normalizePurchaseDate("2026-3-7"))
+        assertEquals("2026-03-07", ItemEditFormMapper.normalizePurchaseDate("2026/03/07"))
+        assertEquals("2026-03-07", ItemEditFormMapper.normalizePurchaseDate("2026.3.7"))
+        assertEquals("2026-03-07", ItemEditFormMapper.normalizePurchaseDate("20260307"))
+    }
+
+    @Test
+    fun normalizePurchaseDate_invalidDate_throws() {
+        val throwable = runCatching {
+            ItemEditFormMapper.normalizePurchaseDate("2026-02-30")
+        }.exceptionOrNull()
+
+        assertTrue(throwable is IllegalArgumentException)
+        assertEquals("Purchase date must be a valid date in YYYY-MM-DD format.", throwable?.message)
+    }
+
+    @Test
     fun parseCustomAttributes_parsesBooleanNumberAndString() {
         val parsed = ItemEditFormMapper.parseCustomAttributes(
             listOf(

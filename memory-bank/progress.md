@@ -4,10 +4,10 @@
 - 每完成一个 Step，更新：状态、关键产出、测试结果、阻塞项、下一步。
 - 状态枚举：`todo` / `in_progress` / `done` / `blocked`。
 
-## 当前总览（截至 2026-03-12）
-- 当前阶段：Step 16（Category 与 ItemList 联动与紧凑化）已完成代码与测试执行，等待用户手工验证后决定是否进入 Step 17
+## 当前总览（截至 2026-03-15）
+- 当前阶段：Step 17A（Item Detail 横向滑动 + Item Edit 表单标准化修复）已完成代码与测试执行，等待用户手工验证后决定是否进入下一步
 - 总状态：`in_progress`
-- 说明：已完成 Step 16 实现与真机自动化测试执行；当前按用户要求暂停在 Step 16，等待用户手工验证结论。
+- 说明：已完成 Step 17A 实现与真机自动化测试执行；当前按用户要求暂停在 Step 17A，等待用户手工验证结论。
 
 ## 里程碑日志
 ### 2026-03-03 - 文档一致性修订
@@ -663,3 +663,58 @@
 - 下一步：
   1. 等待用户在手机端确认 Category 列表紧凑度是否满足预期。
   2. 在用户明确“Step 16 验证通过”前，不进入 Step 17。
+
+### 2026-03-14 - Step 17：Item Detail 视觉重构
+- 状态：`done`
+- 关键产出：
+  - 重构 `ItemDetailScreen` 页面结构：照片区上移至顶部，多图展示由横向改为纵向堆叠，详情字段改为 4 组分组卡片（`Basic Info / Purchase Info / Extended Info / System Info`）。
+  - 将详情状态文案从多行压缩为单行分隔显示（`loading/applying/error/action` 聚合为 `|` 分隔状态行），减少垂直占用。
+  - 保持删除/恢复/编辑的业务语义与回调链路不变（`ItemDetailViewModel` 与用例链路未改）。
+  - 扩展 `ItemDetailScreenTestTags`：新增顶部照片区、纵向堆叠容器、4 组信息卡片与状态行标签；保留既有动作按钮标签（`EDIT_BUTTON/DELETE_BUTTON/RESTORE_BUTTON`）兼容现有契约。
+  - 更新 `ItemDetailScreenInteractionTest`：覆盖分组卡片可见性、多图纵向展示与删除/恢复回归。
+  - 为通过全量回归，补充稳定性测试修正：
+    - `NavigationFlowIntegrationTest`：分类预筛选选中态改为 `waitUntil` 等待后断言；
+    - `ItemEditFlowIntegrationTest`：详情页断言改为基于 Step 17 新标签与滚动后的可见性断言，避免旧“单行拼接文本”断言与可视区抖动。
+- 测试结果：
+  - JVM（通过）：
+    - `.\gradlew.bat :app:testDebugUnitTest`
+  - 定向设备测试（通过）：
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenInteractionTest`（3/3）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（4/4）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest`（4/4）
+  - 真机全量回归（通过）：
+    - `.\gradlew.bat connectedAndroidTest`（49/49）
+  - 真机设备：
+    - `SM-S901U1 - Android 16`
+  - 执行备注：
+    - 定向设备测试首次受 ADB 沙箱权限影响，按流程提权执行后通过；
+    - 过程中遇到一次 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，执行 `:app:uninstallDebug :app:uninstallDebugAndroidTest` 后恢复；
+    - Kotlin daemon 在本机权限受限时自动回退 non-daemon 编译，未影响测试结果。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机执行 Step 17 手工验证（顶部照片区、分组卡片、状态单行、删除恢复闭环）。
+  2. 在用户明确“Step 17 验证通过”前，不进入 Step 18。
+
+### 2026-03-15 - Step 17A：Item Detail 横向滑动 + Item Edit 表单标准化修复
+- 状态：`done`
+- 关键产出：
+  - `ItemDetailScreen` 顶部照片区改为“单张卡片横向滑动”，保留顶部位置与现有图片区测试标签主契约。
+  - `ItemEditScreen` 照片导入按钮收敛为 `Take Photo` + `Pick From Library`，并统一两按钮高度/字体与内容 padding，消除同排高度不一致。
+  - `ItemEditScreen` 新增 `Purchase Currency` 下拉（10 种常用货币，`USD/CNY` 置顶，默认 `USD`）；删除底部 `Refresh` 按钮；修复 `Custom Attributes` 的 `Remove` 按钮换行。
+  - `ItemEditFormMapper` / `ItemEditViewModel` 完成购买字段标准化：`purchaseDate` 宽松输入统一为 `YYYY-MM-DD`；`purchasePrice` 强制 `> 0` 且保存前四舍五入两位小数；空币种回填 `USD`。
+  - 更新 `architecture.md`：将本轮里程碑标记修正为 `Step 17A`。
+- 测试结果：
+  - JVM（通过）：
+    - `.\gradlew.bat --% :app:testDebugUnitTest --tests com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFormMapperTest --tests com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditViewModelTest`
+  - 真机设备（通过）：
+    - `.\gradlew.bat connectedAndroidTest`（`SM-S901U1 - Android 16`，51/51）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenInteractionTest`（3/3）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditScreenInteractionTest`（6/6）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.ui.screens.itemedit.ItemEditFlowIntegrationTest`（4/4）
+    - `.\gradlew.bat --% :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.itemmanagementandroid.NavigationFlowIntegrationTest`（4/4）
+  - 执行备注：
+    - 设备测试前执行 `.\gradlew.bat uninstallAll` 清理历史安装签名冲突（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`）后恢复稳定。
+- 阻塞项：无代码阻塞。
+- 下一步：
+  1. 等待用户在 Android Studio 编译并上传手机执行 Step 17A 手工验证（尤其确认两按钮等高与视觉一致性）。
+  2. 在用户明确“Step 17A 验证通过”前，不进入下一步开发。

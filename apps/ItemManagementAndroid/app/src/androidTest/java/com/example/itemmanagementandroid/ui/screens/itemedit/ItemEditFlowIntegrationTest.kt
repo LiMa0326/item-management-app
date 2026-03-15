@@ -20,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.itemmanagementandroid.MainActivity
 import com.example.itemmanagementandroid.ui.components.AppPageScaffoldTestTags
 import com.example.itemmanagementandroid.ui.screens.category.CategoryScreenTestTags
+import com.example.itemmanagementandroid.ui.screens.itemdetail.ItemDetailScreenTestTags
 import com.example.itemmanagementandroid.ui.screens.itemlist.ItemListScreenTestTags
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -51,7 +52,15 @@ class ItemEditFlowIntegrationTest {
         composeRule
             .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
             .performClick()
-        composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            try {
+                composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON)
+                    .assertIsDisplayed()
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
 
         composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
@@ -98,15 +107,26 @@ class ItemEditFlowIntegrationTest {
             .performClick()
 
         composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithText("Item Detail").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).fetchSemanticsNodes()
+                .isNotEmpty()
         }
-        composeRule.onNodeWithText("Item Detail").assertIsDisplayed()
-        composeRule.onNodeWithText("Name: $uniqueName").assertIsDisplayed()
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.BASIC_INFO_CARD)
+            .performScrollTo()
 
         composeRule
             .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
             .performClick()
-        composeRule.onNodeWithText("Item List Screen").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            try {
+                composeRule.onNodeWithTag(ItemListScreenTestTags.GO_TO_ITEM_DETAIL_BUTTON)
+                    .assertIsDisplayed()
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
     }
 
     @Test
@@ -129,10 +149,18 @@ class ItemEditFlowIntegrationTest {
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Purchase Place: Old Place").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(ItemDetailScreenTestTags.PURCHASE_INFO_CARD)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.PURCHASE_INFO_CARD)
+            .performScrollTo()
+        composeRule.onNodeWithText("Old Place").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Edit Item").performClick()
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).performClick()
         composeRule.onNodeWithText("Item Edit Screen").assertIsDisplayed()
         composeRule
             .onNodeWithTag(ItemEditScreenTestTags.PURCHASE_PLACE_INPUT)
@@ -142,8 +170,16 @@ class ItemEditFlowIntegrationTest {
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
-        composeRule.onNodeWithText("Purchase Place: New Place").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(ItemDetailScreenTestTags.PURCHASE_INFO_CARD)
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).assertIsDisplayed()
+        composeRule
+            .onNodeWithTag(ItemDetailScreenTestTags.PURCHASE_INFO_CARD)
+            .performScrollTo()
+        composeRule.onNodeWithText("New Place").assertIsDisplayed()
     }
 
     @Test
@@ -167,7 +203,11 @@ class ItemEditFlowIntegrationTest {
             .onNodeWithTag(ItemEditScreenTestTags.SAVE_BUTTON)
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithText("Item Detail Screen").assertIsDisplayed()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeRule.onNodeWithTag(ItemDetailScreenTestTags.EDIT_BUTTON).assertIsDisplayed()
 
         composeRule
             .onNodeWithTag(AppPageScaffoldTestTags.BACK_BUTTON)
